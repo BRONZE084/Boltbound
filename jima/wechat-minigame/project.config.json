@@ -1,0 +1,23 @@
+{
+  "description": "Boltbound native WeChat Mini Game",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": false,
+    "minified": true,
+    "newFeature": true
+  },
+  "compileType": "game",
+  "appid": "touristappid",
+  "projectname": "boltbound-wechat-minigame",
+  "condition": {
+    "game": {
+      "currentL": -1,
+      "list": []
+    }
+  }
+}

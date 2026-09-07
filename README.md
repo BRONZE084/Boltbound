@@ -6,6 +6,8 @@
 
 > 本文按当前源码说明功能与限制。网页与手机浏览器可以互相语音；微信原生小游戏使用另一条语音通道，目前不能与浏览器互相通话。共享游戏房间不等于共享语音频道。
 
+仓库中的完整源码位于 [jima/](jima/)。开发、测试和打包命令在该子目录执行；仓库根目录保留本说明与安装包。
+
 ## 目录
 
 - [快速开始](#快速开始)
@@ -27,7 +29,7 @@
 
 ### 直接游玩 Windows 安装版
 
-已有安装包时，双击 `release/ZaoluRace-Setup.exe`。安装包包含网页资源、房间服务、Node.js 运行时和公网隧道客户端，无需玩家另装开发环境。
+仓库根目录提供 [ZaoluRace-Setup.exe](ZaoluRace-Setup.exe)；自行打包的输出位于 `jima/release/ZaoluRace-Setup.exe`。安装包包含网页资源、房间服务、Node.js 运行时和公网隧道客户端，无需玩家另装开发环境。
 
 1. 安装后打开桌面的 `Zaolu Race`。
 2. 启动器打开本机游戏，并建立异地联机入口。
@@ -50,9 +52,10 @@
 | Windows 安装包 | Windows、PowerShell、.NET Framework C# 编译器、IExpress，以及已准备好的 cloudflared 文件 |
 | 微信预览与发布 | 微信开发者工具；真机与发布还需要正式 AppID 和相应后台配置 |
 
-以下命令均在项目根目录执行。文中的环境变量示例使用 PowerShell。
+以下命令均在源码根目录 `jima/` 执行。首次从仓库根目录进入 `jima` 后，后续命令保持在该目录运行。文中的环境变量示例使用 PowerShell。
 
 ```powershell
+cd jima
 node --version
 npm --version
 npm ci
@@ -68,7 +71,7 @@ npm run dev
 
 也可在两个终端分别执行 `npm run dev:server` 和 `npm run dev:web`。
 
-开发代理固定指向 `127.0.0.1:3001`。若当前终端已有其他 `PORT` 设置，先调整为 `3001`；修改后端端口时，也要同步修改 [vite.config.js](vite.config.js)。前端 `5173` 开启了严格端口检查，被占用时不会自动换端口。
+开发代理固定指向 `127.0.0.1:3001`。若当前终端已有其他 `PORT` 设置，先调整为 `3001`；修改后端端口时，也要同步修改 [vite.config.js](jima/vite.config.js)。前端 `5173` 开启了严格端口检查，被占用时不会自动换端口。
 
 同一局域网可访问 `http://主机局域网IP:5173`，需要网络互通及主机防火墙允许访问。手机不能用自己的 `localhost` 访问电脑。普通局域网 HTTP 可用于玩法调试，但通常不能获取手机浏览器麦克风；语音测试请使用有效 HTTPS 入口。
 
@@ -140,11 +143,11 @@ npm run dev
 | 中间平台 | `(760, 436)` | `340 x 32` |
 | 右下终点平台 | `(1440, 676)` | `320 x 32` |
 
-出生基点为 `(80, 142)`，多人按槽位错开。终点区域中心为 `(1510, 595)`。配置来源为 [shared/gameConfig.js](shared/gameConfig.js)；其中 `groundY` 是放置范围相关参数，不代表一块实心地板。
+出生基点为 `(80, 142)`，多人按槽位错开。终点区域中心为 `(1510, 595)`。配置来源为 [shared/gameConfig.js](jima/shared/gameConfig.js)；其中 `groundY` 是放置范围相关参数，不代表一块实心地板。
 
 ### 为什么某处不能放置
 
-客户端预览与服务端提交共用 [shared/placementRules.js](shared/placementRules.js)。服务端仍会重新校验，不以预览颜色作为最终依据。
+客户端预览与服务端提交共用 [shared/placementRules.js](jima/shared/placementRules.js)。服务端仍会重新校验，不以预览颜色作为最终依据。
 
 - 零件吸附到 20 像素网格，且必须是自己本轮获得的零件。
 - 服务端允许的中心范围为 `80 <= x <= 1520`、`160 <= y <= 772`，具体零件还受完整尺寸和作用范围约束。因此地图最上方并不是自由建造区。
@@ -158,7 +161,7 @@ npm run dev
 
 ## 机关与主动道具
 
-选件池共有 23 种选项：14 种地图零件、9 种竞速主动道具。名称和参数集中在 [shared/gameConfig.js](shared/gameConfig.js)，以下为当前默认值。
+选件池共有 23 种选项：14 种地图零件、9 种竞速主动道具。名称和参数集中在 [shared/gameConfig.js](jima/shared/gameConfig.js)，以下为当前默认值。
 
 ### 14 种地图零件
 
@@ -203,7 +206,7 @@ npm run dev
 
 重力锤等攻击道具的目标必须是其他在线、未死亡、未完赛的竞速玩家。对方有护盾、已有负面效果或处于效果结束后的 1.5 秒免疫期时，不是有效目标。选择窗口为 6 秒，取消或超时不消费道具；「没有目标」不表示道具未实现。
 
-炸弹以服务端最后认可的角色位置为中心，只拆除玩家放置的零件，包括自己的零件，不炸毁三座基础平台，也不直接伤害玩家。炸中成对传送门的一扇时会连同另一扇移除，避免留下不一致的配对。实现见 [server/bombLogic.js](server/bombLogic.js)。
+炸弹以服务端最后认可的角色位置为中心，只拆除玩家放置的零件，包括自己的零件，不炸毁三座基础平台，也不直接伤害玩家。炸中成对传送门的一扇时会连同另一扇移除，避免留下不一致的配对。实现见 [server/bombLogic.js](jima/server/bombLogic.js)。
 
 ## 设置与声音
 
@@ -227,7 +230,7 @@ npm run dev
 
 ### 背景音乐与音效
 
-项目包含一首循环背景音乐和 13 类游戏音效，由 [scripts/generate-audio-assets.mjs](scripts/generate-audio-assets.mjs) 生成 WAV，资源清单见 [shared/audioAssets.js](shared/audioAssets.js)。
+项目包含一首循环背景音乐和 13 类游戏音效，由 [scripts/generate-audio-assets.mjs](jima/scripts/generate-audio-assets.mjs) 生成 WAV，资源清单见 [shared/audioAssets.js](jima/shared/audioAssets.js)。
 
 ```powershell
 npm run generate:audio
@@ -248,7 +251,7 @@ npm run test:audio
 
 微信原生回调只提供当前发言成员，不提供连续音量数值。客户端通过受房间约束的服务端映射获得对应 `playerId`，从而在自己与队友头像处显示二值的「正在说话」状态，不伪造音量百分比或分贝。隐藏、断线、离开及语音中断后会清理活动状态，不自动重开麦克风。
 
-如需浏览器与微信小游戏跨通道通话，需要将两端接入统一且支持这两个环境的 RTC 方案；仅更换房间码、域名或 TURN 配置不能实现。配置细节见[实时语音部署](docs/VOICE.md)。
+如需浏览器与微信小游戏跨通道通话，需要将两端接入统一且支持这两个环境的 RTC 方案；仅更换房间码、域名或 TURN 配置不能实现。配置细节见[实时语音部署](jima/docs/VOICE.md)。
 
 ## 技术架构与目录
 
@@ -301,7 +304,7 @@ jima/
   .runtime/                 本机隧道程序、运行状态和日志
 ```
 
-重点入口：[游戏配置](shared/gameConfig.js)、[放置规则](shared/placementRules.js)、[游戏场景](src/game/BoltboundScene.js)、[房间服务](server/index.js)、[竞速校验](server/raceValidation.js)、[语音服务](server/voiceService.js)。
+重点入口：[游戏配置](jima/shared/gameConfig.js)、[放置规则](jima/shared/placementRules.js)、[游戏场景](jima/src/game/BoltboundScene.js)、[房间服务](jima/server/index.js)、[竞速校验](jima/server/raceValidation.js)、[语音服务](jima/server/voiceService.js)。
 
 ## 服务端配置
 
@@ -390,9 +393,9 @@ npm run dev:server
 ```
 
 1. 微信开发者工具导入 `wechat-minigame/`，项目类型选择小游戏。
-2. [project.config.json](wechat-minigame/project.config.json) 当前的 `touristappid` 用于本地预览，不可用于正式发布或真实 VoIP。
-3. [config.js](wechat-minigame/config.js) 默认 `serverUrl` 为 `http://127.0.0.1:3001`，`socketPath` 为 `/socket.io/`，仅适合电脑上的模拟器。
-4. 工程加载顺序为适配器、`config.js`、`dist/game.bundle.js`，由 [game.js](wechat-minigame/game.js) 管理。
+2. [project.config.json](jima/wechat-minigame/project.config.json) 当前的 `touristappid` 用于本地预览，不可用于正式发布或真实 VoIP。
+3. [config.js](jima/wechat-minigame/config.js) 默认 `serverUrl` 为 `http://127.0.0.1:3001`，`socketPath` 为 `/socket.io/`，仅适合电脑上的模拟器。
+4. 工程加载顺序为适配器、`config.js`、`dist/game.bundle.js`，由 [game.js](jima/wechat-minigame/game.js) 管理。
 
 构建会生成并同步音频，将 SVG 按需转换为 PNG，校验尺寸和透明背景，并输出单个游戏 bundle。当前资源清单包含 29 张 PNG 和 14 个 WAV；素材调整时以共享清单与构建校验为准。
 
@@ -422,7 +425,7 @@ npm run build:wechat
 
 `urlCheck: false` 只是开发者工具调试设置，不能代替真机域名配置。手机上的 `127.0.0.1` 指手机自身，不能连接开发电脑。临时变化的公网隧道域名不适合作为正式发布域名。
 
-详细工程与适配器说明见 [wechat-minigame/README.md](wechat-minigame/README.md)。
+详细工程与适配器说明见 [wechat-minigame/README.md](jima/wechat-minigame/README.md)。
 
 ## 构建与发布
 
@@ -461,7 +464,7 @@ npm run release:all
 
 ### Windows 打包前提
 
-[scripts/build-installer.ps1](scripts/build-installer.ps1) 依赖 Windows 的 C# 编译器及 IExpress，并从当前环境复制 `node.exe`。它还要求 `.runtime/cloudflared-windows-amd64.exe` 已存在且 SHA-256 与脚本固定值一致；脚本不会自动下载该文件。
+[scripts/build-installer.ps1](jima/scripts/build-installer.ps1) 依赖 Windows 的 C# 编译器及 IExpress，并从当前环境复制 `node.exe`。它还要求 `.runtime/cloudflared-windows-amd64.exe` 已存在且 SHA-256 与脚本固定值一致；脚本不会自动下载该文件。
 
 打包会暂存 `server/`、`shared/`、`dist/`，通过 `npm ci --omit=dev --ignore-scripts` 安装生产依赖，再打入运行时和启动器。因此打包机器需要可用的 npm 缓存或网络，接收安装包的玩家不需要自行执行 npm。
 
@@ -469,7 +472,7 @@ npm run release:all
 
 需要保留打包中间目录用于调试时，可直接给脚本传 `-KeepWorkDirectory`。安装包只是分发形式，不是 Electron 客户端，不会自动把服务部署到云主机，也不会替你完成微信上传审核。
 
-平台同步约定见 [docs/PLATFORM_SYNC.md](docs/PLATFORM_SYNC.md)。
+平台同步约定见 [docs/PLATFORM_SYNC.md](jima/docs/PLATFORM_SYNC.md)。
 
 ## 测试与验证
 
@@ -640,9 +643,9 @@ Get-Content .runtime/public-url.txt
 
 ### 文档与许可
 
-- [双平台同步规则](docs/PLATFORM_SYNC.md)
-- [实时语音部署](docs/VOICE.md)
-- [微信小游戏工程说明](wechat-minigame/README.md)
-- [微信适配器许可证](wechat-minigame/LICENSE)
+- [双平台同步规则](jima/docs/PLATFORM_SYNC.md)
+- [实时语音部署](jima/docs/VOICE.md)
+- [微信小游戏工程说明](jima/wechat-minigame/README.md)
+- [微信适配器许可证](jima/wechat-minigame/LICENSE)
 
 `wechat-minigame/LICENSE` 对应所附适配器来源的 MIT 许可，不代表整个游戏自动采用 MIT 许可。项目当前 `package.json` 标记为 `private: true`，根目录没有统一开源许可证；对外分发或二次使用前应明确游戏代码、美术、音频和第三方依赖的授权范围。

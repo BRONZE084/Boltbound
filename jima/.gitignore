@@ -1,0 +1,31 @@
+# Dependencies and build outputs
+node_modules/
+dist/
+.vite/
+.installer-build/
+release/
+artifacts/
+
+# Local runtime and disposable test output; keep publication assets
+.runtime/
+.playwright-cli/
+/output/*
+!/output/branding/
+
+# Unrelated installer kept locally
+/SteamSetup.exe
+
+# Local credentials; sanitized templates may be committed
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Patch leftovers, logs, and operating-system metadata
+*.orig
+*.rej
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini
+

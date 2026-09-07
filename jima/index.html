@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="screen-orientation" content="landscape" />
+    <meta name="x5-orientation" content="landscape" />
+    <meta name="x5-fullscreen" content="true" />
+    <meta name="full-screen" content="yes" />
+    <meta name="theme-color" content="#f3eee3" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="description" content="造路狂奔 - 原创多人造路竞速游戏" />
+    <title>造路狂奔</title>
+  </head>
+  <body>
+    <main id="app">
+      <section id="home-view" class="view home-view" aria-labelledby="brand-title">
+        <div class="home-art" aria-hidden="true">
+          <img src="/assets/yard-backdrop.svg" alt="" />
+          <img class="home-runner runner-one" src="/assets/runner-coral.svg" alt="" />
+          <img class="home-runner runner-two" src="/assets/runner-teal.svg" alt="" />
+        </div>
+
+        <header class="home-brand">
+          <span class="brand-mark"><i data-lucide="construction"></i></span>
+          <h1 id="brand-title">造路狂奔</h1>
+        </header>
+        <button class="icon-button settings-entry home-settings" data-settings-open type="button"
+          aria-label="打开设置" title="设置">
+          <i data-lucide="settings"></i>
+        </button>
+
+        <form id="entry-panel" class="entry-panel">
+          <label class="field-label" for="player-name">玩家名</label>
+          <div class="input-wrap">
+            <i data-lucide="user-round"></i>
+            <input id="player-name" maxlength="12" autocomplete="nickname" placeholder="输入名字" required />
+          </div>
+
+          <button id="create-room" class="button primary" type="button">
+            <i data-lucide="plus"></i><span>创建房间</span>
+          </button>
+
+          <div class="join-row">
+            <div class="input-wrap code-input">
+              <i data-lucide="key-round"></i>
+              <input id="room-code-input" maxlength="5" inputmode="text" autocomplete="off" placeholder="房间码" />
+            </div>
+            <button id="join-room" class="button secondary" type="button">
+              <i data-lucide="log-in"></i><span>加入</span>
+            </button>
+          </div>
+
+          <button id="practice" class="button quiet" type="button">
+            <i data-lucide="gamepad-2"></i><span>单人练习</span>
+          </button>
+          <p id="entry-error" class="form-error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="room-view" class="view room-view" hidden aria-labelledby="room-title">
+        <header class="app-bar">
+          <button class="icon-button" id="leave-room" type="button" aria-label="离开房间" title="离开房间">
+            <i data-lucide="arrow-left"></i>
+          </button>
+          <div>
+            <p class="eyebrow">等待区</p>
+            <h2 id="room-title">集结工友</h2>
+          </div>
+          <div class="app-bar-actions">
+            <button class="icon-button" id="copy-room-code" type="button" aria-label="复制房间码" title="复制房间码">
+              <i data-lucide="copy"></i>
+            </button>
+            <button class="icon-button settings-entry" data-settings-open type="button"
+              aria-label="打开设置" title="设置">
+              <i data-lucide="settings"></i>
+            </button>
+          </div>
+        </header>
+
+        <div class="room-code-band">
+          <span>房间码</span>
+          <strong id="room-code">-----</strong>
+          <small id="copy-feedback" aria-live="polite"></small>
+        </div>
+
+        <div class="lobby-stage">
+          <div id="player-list" class="player-list" aria-live="polite"></div>
+          <div class="lobby-actions">
+            <p id="lobby-status">等待玩家加入</p>
+            <button id="start-game" class="button primary wide" type="button">
+              <i data-lucide="play"></i><span>开始比赛</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="game-view" class="view game-view" hidden aria-label="游戏场地">
+        <header class="game-bar" aria-label="比赛状态">
+          <button id="game-exit" class="icon-button" type="button" aria-label="离开比赛" title="离开比赛">
+            <i data-lucide="arrow-left"></i>
+          </button>
+          <button class="icon-button settings-entry game-settings" data-settings-open type="button"
+            aria-label="打开设置" title="设置">
+            <i data-lucide="settings"></i>
+          </button>
+          <div class="round-block">
+            <span id="phase-label">等待</span>
+            <strong id="round-label">第 1 / 5 回合</strong>
+          </div>
+          <div id="score-strip" class="score-strip" aria-label="当前比分"></div>
+          <div class="timer-block" aria-live="polite">
+            <i data-lucide="timer"></i>
+            <strong id="phase-timer">--</strong>
+          </div>
+        </header>
+
+        <div id="game-shell" class="game-shell">
+          <div id="game-canvas" class="game-canvas"></div>
+          <div id="phase-banner" class="phase-banner" hidden>
+            <span id="banner-kicker"></span>
+            <strong id="banner-title"></strong>
+          </div>
+          <div id="connection-pill" class="connection-pill" hidden>
+            <i data-lucide="wifi-off"></i><span>正在重连</span>
+          </div>
+        </div>
+
+        <section id="draft-panel" class="round-overlay draft-panel" hidden aria-labelledby="draft-title">
+          <header class="round-overlay-header">
+            <p>工棚选件</p>
+            <h2 id="draft-title">挑选本轮零件</h2>
+            <span id="draft-status" role="status">等待发放零件</span>
+          </header>
+          <div id="draft-options" class="draft-options" role="list" aria-label="本轮可选零件"></div>
+        </section>
+
+        <section id="results-panel" class="round-overlay results-panel" hidden aria-labelledby="results-title">
+          <header class="round-overlay-header">
+            <p>本轮验收</p>
+            <h2 id="results-title">成绩结算</h2>
+          </header>
+          <div id="results-list" class="results-list" aria-live="polite"></div>
+        </section>
+
+        <div id="build-dock" class="build-dock" role="toolbar" aria-label="搭建工具" hidden>
+          <div class="piece-chip" aria-live="polite">
+            <span class="piece-preview" aria-hidden="true">
+              <img id="piece-icon" src="/assets/piece-beam.svg" alt="" />
+            </span>
+            <span class="piece-copy">
+              <strong id="piece-name">横梁</strong>
+              <span id="piece-angle">0&deg;</span>
+            </span>
+          </div>
+          <button id="rotate-piece" class="icon-button strong" type="button" aria-label="旋转零件" title="旋转零件">
+            <i data-lucide="rotate-cw"></i>
+          </button>
+          <button id="skip-piece" class="icon-button skip" type="button" aria-label="跳过本次搭建" title="跳过本次搭建">
+            <i data-lucide="skip-forward"></i>
+          </button>
+          <button id="confirm-piece" class="icon-button confirm" type="button" aria-label="确认放置" title="确认放置" disabled>
+            <i data-lucide="check"></i>
+          </button>
+        </div>
+
+        <div id="item-target-prompt" class="item-target-prompt" role="status" hidden>
+          <strong id="item-target-title">选择目标</strong>
+          <span id="item-target-countdown">3</span>
+        </div>
+
+        <div id="item-dock" class="item-dock" role="toolbar" aria-label="主动道具" hidden>
+          <span class="item-icon" aria-hidden="true">
+            <img id="item-icon" src="/assets/piece-turbo.svg" alt="" />
+          </span>
+          <span class="item-copy" aria-live="polite">
+            <strong id="item-name">主动道具</strong>
+            <span id="item-status">待使用</span>
+          </span>
+          <button id="use-item" class="icon-button item-use" type="button" aria-label="使用主动道具" title="使用主动道具 (Q)">
+            <i data-lucide="zap"></i>
+          </button>
+        </div>
+
+        <div id="touch-controls" class="touch-controls" hidden>
+          <button data-control="left" class="touch-button" type="button" aria-label="向左"><i data-lucide="arrow-left"></i></button>
+          <button data-control="right" class="touch-button" type="button" aria-label="向右"><i data-lucide="arrow-right"></i></button>
+          <button data-control="jump" class="touch-button jump" type="button" aria-label="跳跃"><i data-lucide="arrow-up"></i></button>
+        </div>
+
+        <div id="gameover-panel" class="gameover-panel" hidden>
+          <i data-lucide="trophy"></i>
+          <p>本场冠军</p>
+          <h2 id="winner-name">玩家</h2>
+          <button id="rematch" class="button primary" type="button">
+            <i data-lucide="refresh-cw"></i><span>再来一局</span>
+          </button>
+          <button id="game-leave" class="button quiet" type="button">
+            <i data-lucide="door-open"></i><span>返回首页</span>
+          </button>
+        </div>
+
+        <div id="orientation-gate" class="orientation-gate" hidden role="dialog" aria-modal="true"
+          aria-labelledby="orientation-title" aria-describedby="orientation-copy">
+          <div class="orientation-gate-panel">
+            <span class="orientation-gate-icon" aria-hidden="true"><i data-lucide="rotate-cw"></i></span>
+            <h2 id="orientation-title">请横屏游戏</h2>
+            <p id="orientation-copy">会先尝试系统横屏；设备不支持时将自动进入兼容横屏。</p>
+            <button id="enter-landscape" class="button primary" type="button">
+              <i data-lucide="rotate-cw"></i><span>进入横屏</span>
+            </button>
+            <p id="orientation-status" class="orientation-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div id="virtual-landscape-toolbar" class="virtual-landscape-toolbar" hidden
+          role="group" aria-label="兼容横屏控制">
+          <strong>兼容横屏</strong>
+          <button id="retry-native-landscape" class="icon-button" type="button"
+            aria-label="重试系统横屏" title="重试系统横屏">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+          <button id="exit-virtual-landscape" class="icon-button" type="button"
+            aria-label="退出兼容横屏" title="退出兼容横屏">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      </section>
+
+      <div id="voice-controls" class="voice-controls" role="group" aria-label="网页实时语音，手机浏览器与电脑版互通" hidden>
+        <span id="voice-status" class="voice-status" role="status" aria-live="polite">网页语音 · 待连接</span>
+        <span id="voice-meter" class="voice-meter muted" role="meter" aria-label="我的麦克风音量"
+          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="麦克风已关闭"
+          title="我的麦克风已关闭">
+          <span class="voice-meter-bars" aria-hidden="true">
+            <span class="voice-meter-bar" style="--bar-step: 0; --bar-height: 35%"></span>
+            <span class="voice-meter-bar" style="--bar-step: 1; --bar-height: 55%"></span>
+            <span class="voice-meter-bar" style="--bar-step: 2; --bar-height: 75%"></span>
+            <span class="voice-meter-bar" style="--bar-step: 3; --bar-height: 100%"></span>
+          </span>
+        </span>
+        <button id="voice-mic" class="icon-button voice-button muted" type="button"
+          aria-label="开启麦克风" aria-pressed="false"
+          title="开启网页麦克风；手机浏览器与电脑版互通；微信小游戏语音频道独立">
+          <i data-lucide="mic-off"></i>
+        </button>
+        <button id="voice-speaker" class="icon-button voice-button active" type="button"
+          aria-label="开启网页语音收听" aria-pressed="true"
+          title="连接并收听网页语音；手机浏览器与电脑版互通；微信小游戏语音频道独立">
+          <i data-lucide="volume-2"></i>
+        </button>
+      </div>
+
+      <div id="settings-modal" class="settings-modal" hidden role="dialog" aria-modal="true"
+        aria-labelledby="settings-title" aria-describedby="settings-description">
+        <section class="settings-panel" tabindex="-1">
+          <header class="settings-header">
+            <div>
+              <p>常规设置</p>
+              <h2 id="settings-title">游戏设置</h2>
+            </div>
+            <button id="settings-close" class="icon-button" type="button" aria-label="关闭设置" title="关闭设置">
+              <i data-lucide="x"></i>
+            </button>
+          </header>
+          <p id="settings-description" class="sr-only">调整背景音乐、游戏音效、网页语音、画质和横屏显示设置。</p>
+          <div class="settings-body">
+            <section class="settings-section" aria-labelledby="settings-audio-title">
+              <div class="settings-section-heading">
+                <i data-lucide="volume-2" aria-hidden="true"></i>
+                <h3 id="settings-audio-title">游戏声音</h3>
+              </div>
+              <div class="settings-audio-grid">
+                <div class="settings-audio-channel">
+                  <label class="settings-toggle" for="settings-music-enabled">
+                    <span><strong>背景音乐</strong><small>循环播放游戏背景音乐</small></span>
+                    <input id="settings-music-enabled" type="checkbox" checked />
+                    <span class="toggle-track" aria-hidden="true"></span>
+                  </label>
+                  <label class="settings-range" for="settings-music-volume">
+                    <span>音乐音量</span>
+                    <output id="settings-music-volume-value" for="settings-music-volume">45%</output>
+                    <input id="settings-music-volume" type="range" min="0" max="100" step="5" value="45" />
+                  </label>
+                </div>
+                <div class="settings-audio-channel">
+                  <label class="settings-toggle" for="settings-effects-enabled">
+                    <span><strong>游戏音效</strong><small>跳跃、放置和道具反馈</small></span>
+                    <input id="settings-effects-enabled" type="checkbox" checked />
+                    <span class="toggle-track" aria-hidden="true"></span>
+                  </label>
+                  <label class="settings-range" for="settings-effects-volume">
+                    <span>音效音量</span>
+                    <output id="settings-effects-volume-value" for="settings-effects-volume">75%</output>
+                    <input id="settings-effects-volume" type="range" min="0" max="100" step="5" value="75" />
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="settings-voice-title">
+              <div class="settings-section-heading">
+                <i data-lucide="volume-2" aria-hidden="true"></i>
+                <h3 id="settings-voice-title">网页语音</h3>
+              </div>
+              <label class="settings-range" for="settings-voice-volume">
+                <span>语音音量</span>
+                <output id="settings-voice-volume-value" for="settings-voice-volume">80%</output>
+                <input id="settings-voice-volume" type="range" min="0" max="100" step="5" value="80" />
+              </label>
+              <label class="settings-toggle" for="settings-mic">
+                <span><strong>麦克风</strong><small>默认关闭，开启时才请求权限</small></span>
+                <input id="settings-mic" type="checkbox" />
+                <span class="toggle-track" aria-hidden="true"></span>
+              </label>
+              <label class="settings-toggle" for="settings-speaker">
+                <span><strong>扬声器</strong><small>进入房间后自动只收听</small></span>
+                <input id="settings-speaker" type="checkbox" checked />
+                <span class="toggle-track" aria-hidden="true"></span>
+              </label>
+              <p id="settings-voice-status" class="settings-status" role="status" aria-live="polite"></p>
+            </section>
+
+            <section class="settings-section" aria-labelledby="settings-quality-title">
+              <div class="settings-section-heading">
+                <i data-lucide="monitor" aria-hidden="true"></i>
+                <h3 id="settings-quality-title">画质</h3>
+              </div>
+              <div class="quality-options" role="radiogroup" aria-label="画质档位">
+                <label><input type="radio" name="quality" value="performance" /><span>性能<small>1200 x 675</small></span></label>
+                <label><input type="radio" name="quality" value="balanced" checked /><span>平衡<small>1600 x 900</small></span></label>
+                <label><input type="radio" name="quality" value="clear" /><span>清晰<small>2000 x 1125</small></span></label>
+              </div>
+            </section>
+
+            <section class="settings-section" aria-labelledby="settings-display-title">
+              <div class="settings-section-heading">
+                <i data-lucide="maximize" aria-hidden="true"></i>
+                <h3 id="settings-display-title">显示</h3>
+              </div>
+              <button id="settings-landscape" class="button secondary settings-command" type="button">
+                <i data-lucide="maximize"></i><span>横屏全屏</span>
+              </button>
+              <p id="settings-display-status" class="settings-status" role="status" aria-live="polite"></p>
+            </section>
+
+            <section class="settings-section settings-controls-help" aria-labelledby="settings-controls-title">
+              <div class="settings-section-heading">
+                <i data-lucide="gamepad-2" aria-hidden="true"></i>
+                <h3 id="settings-controls-title">控制说明</h3>
+              </div>
+              <dl>
+                <div><dt>移动</dt><dd>A / D 或方向键；手机使用左右按钮</dd></div>
+                <div><dt>二段跳</dt><dd>W、空格或上方向键可连续跳两次；手机连续点跳跃按钮</dd></div>
+                <div><dt>搭建</dt><dd>R 旋转，拖动后确认放置</dd></div>
+                <div><dt>道具</dt><dd>Q 使用，数字 1-4 选择目标</dd></div>
+              </dl>
+            </section>
+          </div>
+        </section>
+      </div>
+
+      <div id="item-target-modal" class="item-target-modal" hidden role="dialog" aria-modal="true"
+        aria-labelledby="item-target-modal-title" aria-describedby="item-target-help">
+        <section class="item-target-panel" tabindex="-1">
+          <header class="item-target-header">
+            <div>
+              <p>指定目标</p>
+              <h2 id="item-target-modal-title">选择道具目标</h2>
+            </div>
+            <strong id="item-target-modal-countdown" aria-label="剩余秒数">6</strong>
+          </header>
+          <p id="item-target-help">选择一名玩家，或按数字键 1-4。</p>
+          <p id="item-target-error" class="item-target-error" role="alert" hidden></p>
+          <div id="item-target-list" class="item-target-list" role="group" aria-label="玩家目标"></div>
+          <button id="item-target-cancel" class="button quiet" type="button">
+            <i data-lucide="x"></i><span>取消</span>
+          </button>
+        </section>
+      </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

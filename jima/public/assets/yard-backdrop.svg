@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <!-- Sky: broad shapes stay quiet so placed pieces keep the strongest contrast. -->
+  <rect width="1600" height="900" fill="#dbecee"/>
+  <g>
+    <circle cx="800" cy="116" r="60" fill="#ffd45c" stroke="#526762" stroke-width="5"/>
+    <path d="M774 88c16-11 37-13 55-4" fill="none" stroke="#fff0a4" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <g fill="#f8f1df" stroke="#81908a" stroke-width="4" stroke-linejoin="round">
+    <path d="M76 154c12-33 41-48 72-41 18-24 57-22 73 4 36-6 63 13 70 43H76z"/>
+    <path d="M464 112c9-26 31-39 57-34 15-20 48-17 61 7 29-3 49 14 54 37H464z"/>
+    <path d="M1060 232c8-24 29-36 53-31 15-18 45-15 57 7 26-2 44 13 49 34h-159z"/>
+  </g>
+
+  <!-- Two low-contrast mountain layers create depth without outlining the play space. -->
+  <path d="M0 350 151 245l142 100 170-150 170 143 170-99 164 131 175-158 178 146 145-113 135 105v180H0z" fill="#bac8bc"/>
+  <path d="M0 430 184 310l132 100 179-117 174 126 173-94 202 128 183-112 194 118 179-109v190H0z" fill="#ceb79e"/>
+
+  <!-- Distant industrial silhouette. Thin, muted strokes separate it from interactive art. -->
+  <g fill="#899a91" stroke="#71827b" stroke-width="4" stroke-linejoin="round">
+    <path d="M34 394h184v146H34z"/>
+    <path d="m34 394 46-42 47 42 46-42 45 42"/>
+    <path d="M286 370h184v170H286z"/>
+    <path d="M317 336h74v34h-74z" fill="#c89a58"/>
+    <path d="M664 408h250v132H664z"/>
+    <path d="M696 374h178v34H696z" fill="#80948d"/>
+    <path d="M1090 382h205v158h-205z"/>
+    <path d="m1090 382 68-47 69 47 34-24 34 24"/>
+    <path d="M1370 355h180v185h-180z"/>
+    <path d="M1414 320h92v35h-92z" fill="#d0a44b"/>
+  </g>
+
+  <g fill="#efd16d" opacity="0.9">
+    <path d="M67 424h35v28H67zm68 0h35v28h-35zm-68 53h35v28H67zm68 0h35v28h-35z"/>
+    <path d="M320 407h38v29h-38zm72 0h38v29h-38zm-72 55h38v29h-38zm72 0h38v29h-38z"/>
+    <path d="M1128 420h38v29h-38zm73 0h38v29h-38zm-73 55h38v29h-38zm73 0h38v29h-38z"/>
+    <path d="M1406 394h38v30h-38zm70 0h38v30h-38zm-70 56h38v30h-38zm70 0h38v30h-38z"/>
+  </g>
+
+  <!-- Tanks, stacks and a service pipe add industrial detail above the gameplay band. -->
+  <g stroke="#71827b" stroke-width="4" stroke-linejoin="round">
+    <path d="M517 418h108v122H517z" fill="#a9b2a8"/>
+    <path d="M517 418c0-30 24-53 54-53s54 23 54 53" fill="#eef0e7"/>
+    <path d="M548 344h46v21h-46z" fill="#d0a44b"/>
+    <path d="M948 403h102v137H948z" fill="#a9b2a8"/>
+    <path d="M948 403c0-28 23-50 51-50s51 22 51 50" fill="#eef0e7"/>
+    <path d="M973 333h52v20h-52z" fill="#c96e58"/>
+    <path d="M1318 296h32v244h-32z" fill="#7f9189"/>
+    <path d="M1312 296h44v28h-44z" fill="#d0a44b"/>
+  </g>
+  <path d="M1280 350h54v78h-93" fill="none" stroke="#71827b" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Calm retaining wall: large panels and restrained seams support obstacle legibility. -->
+  <rect y="510" width="1600" height="184" fill="#a5a89f"/>
+  <rect y="510" width="1600" height="10" fill="#526762"/>
+  <g fill="#b2b4ac">
+    <path d="M24 548h280v112H24zM342 548h276v112H342zM656 548h288v112H656zM982 548h276v112H982zM1296 548h280v112h-280z"/>
+  </g>
+  <g fill="none" stroke="#969a91" stroke-width="4">
+    <path d="M323 535v141M637 535v141M963 535v141M1277 535v141"/>
+  </g>
+  <g fill="#89928b" opacity="0.75">
+    <path d="M84 581h108v8H84zm0 26h76v8H84z"/>
+    <path d="M1408 581h108v8h-108zm32 26h76v8h-76z"/>
+  </g>
+
+  <!-- Curb and road use broad horizontal bands; detail sits below the action. -->
+  <rect y="694" width="1600" height="48" fill="#d5d1c4"/>
+  <rect y="694" width="1600" height="8" fill="#526762"/>
+  <rect y="702" width="1600" height="8" fill="#e3b64b"/>
+  <rect y="742" width="1600" height="158" fill="#354744"/>
+  <rect y="784" width="1600" height="50" fill="#3d504d"/>
+  <g fill="#e4c968">
+    <path d="M28 854h120v11H28zM244 854h120v11H244zM460 854h120v11H460zM676 854h120v11H676zM892 854h120v11H892zM1108 854h120v11h-120zM1324 854h120v11h-120zM1540 854h60v11h-60z"/>
+  </g>
+</svg>
