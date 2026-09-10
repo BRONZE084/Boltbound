@@ -19,6 +19,7 @@
 - 维护房间创建与加入、房主权限、人数限制、离开房间和断线重连。
 - 同步建造结果、角色运动、道具目标与效果、机关破坏、死亡和结算状态，处理重复请求和过期操作。
 - 维护回合阶段、计时、服务端规则校验与语音信令，排查网络延迟和多人状态不一致。
+- 配合动画负责人同步人物动作状态、朝向、机关触发事件和时间信息，处理延迟、重连及重复事件造成的动画不同步。
 
 ### 主要代码范围
 
@@ -34,6 +35,8 @@
 
 新增或修改联机事件时，先与玩法、界面分支对齐字段、触发时机和错误反馈。玩法分支负责交互规则与物理表现，本分支负责相应的服务端校验和同步，双方保持同一套规则。
 
+人物与场景动画的设计和播放表现由 feature/ui-platform 主责。本分支提供一致的状态、触发事件与时间依据，配合验证远端角色和机关动画；逐帧动画由客户端播放，伤害和死亡等有效结果以游戏状态判定为准。
+
 提供涉及的协议或状态变化说明，并运行相关房间、竞速安全与语音协议测试；复现多人问题时记录人数、操作顺序和网络条件。
 
 ### 四个协作分支的分工
@@ -42,7 +45,7 @@
 | --- | --- |
 | [feature/gameplay-traps](https://github.com/BRONZE084/Boltbound/tree/feature/gameplay-traps) | 核心玩法：搭建、道具与陷阱交互 |
 | [feature/multiplayer-sync](https://github.com/BRONZE084/Boltbound/tree/feature/multiplayer-sync) | 联机服务：房间、状态同步与回合管理 |
-| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面与平台：操作反馈、触控和微信适配 |
+| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面、动画与平台：人物和场景动画、操作反馈与多端适配 |
 | [chore/testing-integration](https://github.com/BRONZE084/Boltbound/tree/chore/testing-integration) | 测试与整合：问题复现、回归验证和构建 |
 
 `main` 用于接收团队审阅并验证通过的整合结果。以上是各分支的职责约定；下面保留当前版本的玩法、操作和运行说明。
