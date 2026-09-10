@@ -18,6 +18,7 @@
 
 - 组织搭建、道具与陷阱组合测试，覆盖多人操作、边界条件、重复触发和异常恢复。
 - 维护自动化检查与浏览器回归，整理问题的环境、步骤、预期行为和实际结果。
+- 验证人物动作衔接、场景与机关动画、预警和伤害判定的一致性，覆盖不同帧率、设备性能、多人同步、死亡与复位后的动画恢复。
 - 整合已审阅的功能改动，检查共享模块和跨端兼容，维护浏览器、微信与 Windows 的构建和打包流程。
 
 ### 主要代码范围
@@ -36,6 +37,8 @@
 
 复现问题后由对应功能负责人确认修复方案；整合共用文件的冲突时保留各分支约定的行为。合入 main 或发布前完成团队评审，明确哪些检查已通过、哪些仍需真机或多人验收。
 
+人物与场景动画的设计和视觉实现由 feature/ui-platform 主责；动画触发或伤害判定问题与玩法负责人共同排查，远端动画不同步问题与联机负责人共同排查。验收时记录动画状态、触发时刻、设备和帧率，检查素材构建及浏览器、微信两端的表现。
+
 提供检查结果、问题清单和构建产物说明。按变更范围运行 npm run check:all 及必要的浏览器、微信与打包验证；把通过自动化和通过真机验收分开记录。
 
 ### 四个协作分支的分工
@@ -44,7 +47,7 @@
 | --- | --- |
 | [feature/gameplay-traps](https://github.com/BRONZE084/Boltbound/tree/feature/gameplay-traps) | 核心玩法：搭建、道具与陷阱交互 |
 | [feature/multiplayer-sync](https://github.com/BRONZE084/Boltbound/tree/feature/multiplayer-sync) | 联机服务：房间、状态同步与回合管理 |
-| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面与平台：操作反馈、触控和微信适配 |
+| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面、动画与平台：人物和场景动画、操作反馈与多端适配 |
 | [chore/testing-integration](https://github.com/BRONZE084/Boltbound/tree/chore/testing-integration) | 测试与整合：问题复现、回归验证和构建 |
 
 `main` 用于接收团队审阅并验证通过的整合结果。以上是各分支的职责约定；下面保留当前版本的玩法、操作和运行说明。
