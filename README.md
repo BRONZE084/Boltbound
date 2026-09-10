@@ -1,6 +1,6 @@
 # 造路狂奔 / Boltbound
 
-一款多人联机的搭建竞速派对游戏：玩家先选择零件或道具，同时搭建路线，再一起跳跃、躲避机关、争夺终点。每局进行 5 回合，按累计分数决出胜者。
+一款以道具使用、搭建和陷阱交互为核心的多人联机派对游戏，重点打磨人物与场景、机关之间的互动。当前版本采用选件、搭建、闯关的回合流程，每局进行 5 回合，按累计分数决出胜者；后续开发围绕陷阱与道具的组合体验展开。
 
 电脑版及浏览器版名称为「造路狂奔」，微信小游戏名称为 **Boltbound**。两端共用游戏场景、地图配置、放置规则和房间服务；Windows 安装包是网页游戏的本地服务与启动器，不需要 Steam。
 
@@ -8,8 +8,49 @@
 
 仓库中的完整源码位于 [jima/](jima/)。开发、测试和打包命令在该子目录执行；仓库根目录保留本说明与安装包。
 
+## 当前分支的作用
+
+**分支：`feature/ui-platform`**
+
+**界面与平台：操作反馈、触控和微信适配。** 负责让玩家清楚地选择、搭建和使用道具，在浏览器、手机及微信小游戏中获得易理解、可操作的界面与反馈。
+
+### 开发重点
+
+- 完善首页、大厅、选件面板、搭建工具栏、道具目标选择、状态提示和结算界面。
+- 优化键鼠与触控操作、横屏适配、响应式布局、设置、音效和语音入口。
+- 维护微信 Canvas 界面和平台适配，保证共用玩法在各端的操作方式与反馈一致。
+
+### 主要代码范围
+
+| 文件或目录 | 负责内容 |
+| --- | --- |
+| [jima/index.html](jima/index.html) | 浏览器页面结构与操作入口 |
+| [jima/src/main.js](jima/src/main.js) | 浏览器界面状态、输入与联机事件接入 |
+| [jima/src/style.css](jima/src/style.css) | 游戏界面样式和响应式布局 |
+| [jima/src/wechat/](jima/src/wechat/) | 微信入口、界面、触控、网络与平台适配 |
+| [jima/src/orientation/](jima/src/orientation/) | 浏览器横屏和显示兼容 |
+| [jima/src/settings/](jima/src/settings/) | 浏览器设置状态 |
+
+### 协作边界与交付
+
+涉及人物控制、碰撞或机关行为时，与玩法分支协调共用场景接口；涉及房间和道具消息时，与联机分支对齐协议。实验室界面由玩法分支维护，其公共视觉和操作规范可在此分支协同设计。
+
+提供界面变化说明和适用设备范围，验证键鼠、触控、横竖屏及相关设置与 HUD 测试；记录浏览器和微信端各自的验证结果。
+
+### 四个协作分支的分工
+
+| 分支 | 主要作用 |
+| --- | --- |
+| [feature/gameplay-traps](https://github.com/BRONZE084/Boltbound/tree/feature/gameplay-traps) | 核心玩法：搭建、道具与陷阱交互 |
+| [feature/multiplayer-sync](https://github.com/BRONZE084/Boltbound/tree/feature/multiplayer-sync) | 联机服务：房间、状态同步与回合管理 |
+| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面与平台：操作反馈、触控和微信适配 |
+| [chore/testing-integration](https://github.com/BRONZE084/Boltbound/tree/chore/testing-integration) | 测试与整合：问题复现、回归验证和构建 |
+
+`main` 用于接收团队审阅并验证通过的整合结果。以上是各分支的职责约定；下面保留当前版本的玩法、操作和运行说明。
+
 ## 目录
 
+- [当前分支的作用](#当前分支的作用)
 - [快速开始](#快速开始)
 - [玩法与计分](#玩法与计分)
 - [操作说明](#操作说明)
