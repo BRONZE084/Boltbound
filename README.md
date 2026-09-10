@@ -24,15 +24,17 @@
 
 | 文件或目录 | 负责内容 |
 | --- | --- |
-| [jima/src/game/BoltboundScene.js](jima/src/game/BoltboundScene.js) | 人物运动、碰撞、机关触发与场景效果 |
+| [jima/src/game/BoltboundScene.js](jima/src/game/BoltboundScene.js) | 人物运动、碰撞、机关触发与道具行为；动画表现与界面分支协作 |
 | [jima/shared/gameConfig.js](jima/shared/gameConfig.js) | 地图、零件、道具及其参数 |
 | [jima/shared/placementRules.js](jima/shared/placementRules.js) | 搭建边界、重叠与保护区规则 |
 | [jima/src/lab/](jima/src/lab/) | 浏览器道具实验平台与实验状态 |
-| [jima/public/assets/](jima/public/assets/) | 零件、人物和场景的原版素材 |
+| [jima/public/assets/](jima/public/assets/) | 素材尺寸与交互校验；美术和动画设计由界面分支主责 |
 
 ### 协作边界与交付
 
 改变道具规则或共享参数时，与联机分支同步服务端校验和状态字段；调整操作入口或触控方式时，与界面分支对齐。共用玩法逻辑集中维护在 shared/ 和 src/game/，由浏览器与微信版本复用。
+
+人物与场景的美术、动作设计和动画表现由 feature/ui-platform 主责；本分支负责运动轨迹、碰撞、伤害、道具效果和触发条件，并提供起跳、落地、受击、死亡、机关预警与触发等状态依据。双方共同核对动画时机与有效判定时段，协调 BoltboundScene.js 和素材尺寸的修改，并在道具实验室验证动画与交互是否一致。
 
 提交可复现的操作步骤或实验方案，并运行与改动相关的放置、场景和道具实验测试。实验室入口为 /lab.html，使用方式见 [道具实验室说明](jima/docs/TRAP_LAB.md)。
 
@@ -42,7 +44,7 @@
 | --- | --- |
 | [feature/gameplay-traps](https://github.com/BRONZE084/Boltbound/tree/feature/gameplay-traps) | 核心玩法：搭建、道具与陷阱交互 |
 | [feature/multiplayer-sync](https://github.com/BRONZE084/Boltbound/tree/feature/multiplayer-sync) | 联机服务：房间、状态同步与回合管理 |
-| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面与平台：操作反馈、触控和微信适配 |
+| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面、动画与平台：人物和场景动画、操作反馈与多端适配 |
 | [chore/testing-integration](https://github.com/BRONZE084/Boltbound/tree/chore/testing-integration) | 测试与整合：问题复现、回归验证和构建 |
 
 `main` 用于接收团队审阅并验证通过的整合结果。以上是各分支的职责约定；下面保留当前版本的玩法、操作和运行说明。
