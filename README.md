@@ -1,6 +1,6 @@
 # 造路狂奔 / Boltbound
 
-一款多人联机的搭建竞速派对游戏：玩家先选择零件或道具，同时搭建路线，再一起跳跃、躲避机关、争夺终点。每局进行 5 回合，按累计分数决出胜者。
+一款以道具使用、搭建和陷阱交互为核心的多人联机派对游戏，重点打磨人物与场景、机关之间的互动。当前版本采用选件、搭建、闯关的回合流程，每局进行 5 回合，按累计分数决出胜者；后续开发围绕陷阱与道具的组合体验展开。
 
 电脑版及浏览器版名称为「造路狂奔」，微信小游戏名称为 **Boltbound**。两端共用游戏场景、地图配置、放置规则和房间服务；Windows 安装包是网页游戏的本地服务与启动器，不需要 Steam。
 
@@ -8,8 +8,48 @@
 
 仓库中的完整源码位于 [jima/](jima/)。开发、测试和打包命令在该子目录执行；仓库根目录保留本说明与安装包。
 
+## 当前分支的作用
+
+**分支：`feature/multiplayer-sync`**
+
+**联机服务：房间、状态同步与回合管理。** 负责让同一房间的玩家看到一致的搭建、道具使用和陷阱交互结果，并保证回合流转、断线恢复和结算可靠。
+
+### 开发重点
+
+- 维护房间创建与加入、房主权限、人数限制、离开房间和断线重连。
+- 同步建造结果、角色运动、道具目标与效果、机关破坏、死亡和结算状态，处理重复请求和过期操作。
+- 维护回合阶段、计时、服务端规则校验与语音信令，排查网络延迟和多人状态不一致。
+
+### 主要代码范围
+
+| 文件或目录 | 负责内容 |
+| --- | --- |
+| [jima/server/index.js](jima/server/index.js) | 房间、Socket.IO 事件、回合、道具与结算 |
+| [jima/server/raceValidation.js](jima/server/raceValidation.js) | 运动、传送及终点状态校验 |
+| [jima/server/bombLogic.js](jima/server/bombLogic.js) | 爆破范围与零件移除结果 |
+| [jima/server/voiceService.js](jima/server/voiceService.js) | 浏览器和微信语音服务 |
+| [jima/shared/itemTargets.js](jima/shared/itemTargets.js) | 客户端与服务端共同使用的目标状态判定 |
+
+### 协作边界与交付
+
+新增或修改联机事件时，先与玩法、界面分支对齐字段、触发时机和错误反馈。玩法分支负责交互规则与物理表现，本分支负责相应的服务端校验和同步，双方保持同一套规则。
+
+提供涉及的协议或状态变化说明，并运行相关房间、竞速安全与语音协议测试；复现多人问题时记录人数、操作顺序和网络条件。
+
+### 四个协作分支的分工
+
+| 分支 | 主要作用 |
+| --- | --- |
+| [feature/gameplay-traps](https://github.com/BRONZE084/Boltbound/tree/feature/gameplay-traps) | 核心玩法：搭建、道具与陷阱交互 |
+| [feature/multiplayer-sync](https://github.com/BRONZE084/Boltbound/tree/feature/multiplayer-sync) | 联机服务：房间、状态同步与回合管理 |
+| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面与平台：操作反馈、触控和微信适配 |
+| [chore/testing-integration](https://github.com/BRONZE084/Boltbound/tree/chore/testing-integration) | 测试与整合：问题复现、回归验证和构建 |
+
+`main` 用于接收团队审阅并验证通过的整合结果。以上是各分支的职责约定；下面保留当前版本的玩法、操作和运行说明。
+
 ## 目录
 
+- [当前分支的作用](#当前分支的作用)
 - [快速开始](#快速开始)
 - [玩法与计分](#玩法与计分)
 - [操作说明](#操作说明)
