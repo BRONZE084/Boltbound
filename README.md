@@ -1,6 +1,6 @@
 # 造路狂奔 / Boltbound
 
-一款多人联机的搭建竞速派对游戏：玩家先选择零件或道具，同时搭建路线，再一起跳跃、躲避机关、争夺终点。每局进行 5 回合，按累计分数决出胜者。
+一款以道具使用、搭建和陷阱交互为核心的多人联机派对游戏，重点打磨人物与场景、机关之间的互动。当前版本采用选件、搭建、闯关的回合流程，每局进行 5 回合，按累计分数决出胜者；后续开发围绕陷阱与道具的组合体验展开。
 
 电脑版及浏览器版名称为「造路狂奔」，微信小游戏名称为 **Boltbound**。两端共用游戏场景、地图配置、放置规则和房间服务；Windows 安装包是网页游戏的本地服务与启动器，不需要 Steam。
 
@@ -8,8 +8,50 @@
 
 仓库中的完整源码位于 [jima/](jima/)。开发、测试和打包命令在该子目录执行；仓库根目录保留本说明与安装包。
 
+## 当前分支的作用
+
+**分支：`chore/testing-integration`**
+
+**测试与整合：问题复现、回归验证和构建。** 负责验证其他分支的改动能否稳定协同工作，将多人试玩中发现的问题转化为可复现、可回归的问题记录，并维护可交付的构建流程。
+
+### 开发重点
+
+- 组织搭建、道具与陷阱组合测试，覆盖多人操作、边界条件、重复触发和异常恢复。
+- 维护自动化检查与浏览器回归，整理问题的环境、步骤、预期行为和实际结果。
+- 整合已审阅的功能改动，检查共享模块和跨端兼容，维护浏览器、微信与 Windows 的构建和打包流程。
+
+### 主要代码范围
+
+| 文件或目录 | 负责内容 |
+| --- | --- |
+| [jima/scripts/](jima/scripts/) | 自动化测试、素材检查、平台同步和构建脚本 |
+| [jima/server/](jima/server/) | 服务端协议与逻辑测试文件 |
+| [jima/package.json](jima/package.json) | 检查、测试、构建和发布命令 |
+| [jima/vite.config.js](jima/vite.config.js) | 浏览器构建配置 |
+| [jima/vite.wechat.config.js](jima/vite.wechat.config.js) | 微信小游戏构建配置 |
+| [jima/installer/](jima/installer/) | Windows 启动器和安装脚本 |
+| [jima/docs/](jima/docs/) | 验证方法、平台约定和维护文档 |
+
+### 协作边界与交付
+
+复现问题后由对应功能负责人确认修复方案；整合共用文件的冲突时保留各分支约定的行为。合入 main 或发布前完成团队评审，明确哪些检查已通过、哪些仍需真机或多人验收。
+
+提供检查结果、问题清单和构建产物说明。按变更范围运行 npm run check:all 及必要的浏览器、微信与打包验证；把通过自动化和通过真机验收分开记录。
+
+### 四个协作分支的分工
+
+| 分支 | 主要作用 |
+| --- | --- |
+| [feature/gameplay-traps](https://github.com/BRONZE084/Boltbound/tree/feature/gameplay-traps) | 核心玩法：搭建、道具与陷阱交互 |
+| [feature/multiplayer-sync](https://github.com/BRONZE084/Boltbound/tree/feature/multiplayer-sync) | 联机服务：房间、状态同步与回合管理 |
+| [feature/ui-platform](https://github.com/BRONZE084/Boltbound/tree/feature/ui-platform) | 界面与平台：操作反馈、触控和微信适配 |
+| [chore/testing-integration](https://github.com/BRONZE084/Boltbound/tree/chore/testing-integration) | 测试与整合：问题复现、回归验证和构建 |
+
+`main` 用于接收团队审阅并验证通过的整合结果。以上是各分支的职责约定；下面保留当前版本的玩法、操作和运行说明。
+
 ## 目录
 
+- [当前分支的作用](#当前分支的作用)
 - [快速开始](#快速开始)
 - [玩法与计分](#玩法与计分)
 - [操作说明](#操作说明)
