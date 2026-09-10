@@ -19,7 +19,7 @@
     "release:all": "npm run build:all && npm run test:double-jump:browser && npm run test:voice:browser && npm run release:desktop && npm run verify:all",
     "check:wechat": "node scripts/build-wechat-minigame.mjs --verify-only",
     "start": "node server/index.js",
-    "check": "node --check shared/audioAssets.js && node --check shared/audioSettings.js && node --check shared/gameAssets.js && node --check shared/gameConfig.js && node --check shared/itemTargets.js && node --check shared/placementRules.js && node --check server/bombLogic.js && node --check server/botRaceRoute.js && node --check server/raceValidation.js && node --check server/voiceService.js && node --check server/index.js && node --check src/audio/BrowserAudioBackend.js && node --check src/audio/GameAudio.js && node --check src/main.js && node --check src/game/BoltboundScene.js && node --check src/orientation/landscapeMode.js && node --check src/settings/GameSettings.js && node --check src/voice/BrowserVoiceChat.js && node --check src/wechat/main.js && node --check src/wechat/platform.js && node --check src/wechat/WechatAudioBackend.js && node --check src/wechat/WechatSettings.js && node --check src/wechat/WechatUiScene.js && node --check src/wechat/WechatVoiceChat.js && node --check src/wechat/WxSocketTransport.js",
+    "check": "node --check shared/audioAssets.js && node --check shared/audioSettings.js && node --check shared/gameAssets.js && node --check shared/gameConfig.js && node --check shared/itemTargets.js && node --check shared/placementRules.js && node --check server/bombLogic.js && node --check server/botRaceRoute.js && node --check server/raceValidation.js && node --check server/voiceService.js && node --check server/index.js && node --check src/audio/BrowserAudioBackend.js && node --check src/audio/GameAudio.js && node --check src/main.js && node --check src/game/BoltboundScene.js && node --check src/orientation/landscapeMode.js && node --check src/settings/GameSettings.js && node --check src/voice/BrowserVoiceChat.js && node --check src/wechat/main.js && node --check src/wechat/platform.js && node --check src/wechat/WechatAudioBackend.js && node --check src/wechat/WechatSettings.js && node --check src/wechat/WechatUiScene.js && node --check src/wechat/WechatVoiceChat.js && node --check src/wechat/WxSocketTransport.js && node --check src/lab/catalog.js && node --check src/lab/LabSession.js && node --check src/lab/LabScene.js && node --check src/lab/main.js",
     "test:race-security": "node --test server/bombLogic.test.js server/raceValidation.test.js server/raceProtocol.test.js",
     "test:placement": "node scripts/test-placement-rules.mjs && node scripts/test-blackhole-placement.mjs && node scripts/test-dead-build-blockers.mjs",
     "test:voice": "node scripts/test-voice-adapters.mjs && node scripts/test-voice-server.mjs && node scripts/test-wechat-speaker-mapping.mjs && node --test scripts/test-wechat-voice-robustness.mjs",
@@ -28,9 +28,12 @@
     "test:scene": "node scripts/test-orientation-mode.mjs && node scripts/test-remote-motion.mjs && node scripts/test-scene-interactions.mjs",
     "test:double-jump:browser": "node scripts/test-double-jump-browser.mjs",
     "test:voice:browser": "node scripts/test-browser-voice-browser.mjs",
-    "check:all": "npm run check && npm run test:placement && npm run test:race-security && npm run test:voice && npm run test:settings-targets && npm run test:audio && npm run test:scene && node scripts/verify-platform-sync.mjs --source-only",
+    "check:all": "npm run check && npm run test:placement && npm run test:race-security && npm run test:voice && npm run test:settings-targets && npm run test:audio && npm run test:scene && npm run test:lab && node scripts/verify-platform-sync.mjs --source-only",
     "verify:all": "npm run check:all && npm run check:wechat && node scripts/verify-platform-sync.mjs --check",
-    "online": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/keep-online-cloudflare.ps1"
+    "online": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/keep-online-cloudflare.ps1",
+    "dev:lab": "vite --host 127.0.0.1 --open /lab.html",
+    "test:lab": "node --test src/lab/LabSession.test.js",
+    "test:lab:browser": "node scripts/test-lab-browser.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN" class="lab-document">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3eee3" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>道具实验室 · 造路狂奔</title>
+  </head>
+  <body class="lab-body">
+    <main id="lab-app" aria-label="道具实验平台">
+      <header class="lab-header">
+        <a class="lab-brand" href="/" aria-label="返回造路狂奔"><span class="lab-mark"><i data-lucide="construction"></i></span><span>造路狂奔<small>BOLTBOUND / 道具实验室</small></span></a>
+        <div class="lab-purpose">自由搭建，亲手试验。<span>让每一次交互都看得见。</span></div>
+        <div class="lab-file-actions">
+          <button id="import-plan" class="lab-button"><i data-lucide="folder-open"></i>导入方案</button>
+          <button id="export-plan" class="lab-button"><i data-lucide="download"></i>导出方案</button>
+          <input id="plan-file" type="file" accept="application/json,.json" hidden />
+        </div>
+      </header>
+
+      <div class="lab-mode-bar">
+        <div class="lab-mode-tabs" role="group" aria-label="实验模式">
+          <button id="mode-build" class="lab-mode active" aria-pressed="true"><i data-lucide="hammer"></i>搭建工作台</button>
+          <button id="mode-test" class="lab-mode" aria-pressed="false"><i data-lucide="play"></i>交互试验场</button>
+        </div>
+        <span id="save-state" class="lab-save">方案保存在当前浏览器</span>
+        <button id="toggle-test" class="lab-button coral"><i data-lucide="play"></i><span>开始试用</span></button>
+      </div>
+
+      <div class="lab-workspace">
+        <aside class="lab-panel lab-library" aria-labelledby="library-title">
+          <div class="lab-panel-title"><h1 id="library-title">零件与道具</h1><span id="catalog-count" class="lab-count"></span></div>
+          <label class="lab-search"><i data-lucide="search"></i><input id="catalog-search" placeholder="搜索名称或作用" aria-label="搜索道具" type="search" /></label>
+          <div id="catalog-filters" class="lab-filters" role="group" aria-label="道具分类"></div>
+          <div id="catalog" class="lab-catalog" aria-label="源码道具库"></div>
+          <p class="lab-library-note">自由选件 · 无限补充<br />先搭建场景，再进入试验场。</p>
+        </aside>
+
+        <section class="lab-stage-column" aria-label="实验场景">
+          <div class="lab-toolbar" role="toolbar" aria-label="搭建工具">
+            <div class="lab-tools">
+              <button data-tool="place" class="lab-button active" title="放置选中的零件" aria-pressed="true"><i data-lucide="plus"></i>放置</button>
+              <button data-tool="inspect" class="lab-button" aria-pressed="false"><i data-lucide="mouse-pointer-2"></i>选择</button>
+              <button data-tool="erase" class="lab-button" aria-pressed="false"><i data-lucide="eraser"></i>删除</button>
+              <button data-tool="spawn" class="lab-button" aria-pressed="false"><i data-lucide="map-pin"></i>出生点</button>
+            </div>
+            <div class="lab-tools">
+              <button id="undo" class="lab-icon-button" aria-label="撤销" title="撤销 Ctrl+Z"><i data-lucide="undo-2"></i></button>
+              <button id="redo" class="lab-icon-button" aria-label="重做" title="重做 Ctrl+Shift+Z"><i data-lucide="redo-2"></i></button>
+              <button id="clear-map" class="lab-icon-button" aria-label="清空搭建" title="清空搭建（可撤销）"><i data-lucide="trash-2"></i></button>
+            </div>
+          </div>
+          <div class="lab-stage-frame">
+            <div class="lab-stage-strip"><span><b id="stage-mode">搭建模式</b><small id="placement-count">0 件零件</small></span><span class="lab-unlimited">不限时 · 不计分</span></div>
+            <div id="lab-canvas" role="img" aria-label="可交互游戏场地：搭建时点击放置，试用时使用方向键与跳跃键">
+              <p id="scene-loading">正在准备实验场景…</p>
+            </div>
+            <div class="lab-canvas-caption"><span id="canvas-hint">选择零件，在场地内点击放置；空格 / R 旋转。</span><label><input id="debug-bodies" type="checkbox" />碰撞体</label></div>
+          </div>
+          <div class="lab-trial-controls">
+            <div class="lab-player-avatar"><img src="/assets/runner-coral.svg" alt="实验员" /><span>实验员<strong id="player-status">等待试用</strong></span></div>
+            <button id="respawn" class="lab-button" disabled><i data-lucide="map-pin"></i>复位角色 <kbd>R</kbd></button>
+            <button id="reset-test" class="lab-button" disabled><i data-lucide="refresh-cw"></i>重置实验</button>
+            <button id="clear-effects" class="lab-button" disabled>清除效果</button>
+            <button id="sound-toggle" class="lab-icon-button" aria-label="开启音效" aria-pressed="false" title="开启音效"><i data-lucide="volume-x"></i></button>
+          </div>
+          <div class="lab-readouts" aria-label="角色实时状态">
+            <div><small>位置 X / Y</small><strong id="position-readout">— / —</strong></div>
+            <div><small>速度 X / Y</small><strong id="velocity-readout">— / —</strong></div>
+            <div><small>当前效果</small><strong id="effect-readout">无</strong></div>
+            <div><small>陷阱触发 / 死亡</small><strong id="death-readout">0 次</strong></div>
+          </div>
+          <div class="lab-touch-row" aria-label="角色操作">
+            <p><kbd>A</kbd> <kbd>D</kbd> 移动 · <kbd>W</kbd> / <kbd>空格</kbd> 跳跃与二段跳 · <kbd>Q</kbd> 使用道具</p>
+            <div><button data-control="left" class="lab-icon-button" aria-label="向左移动">←</button><button data-control="right" class="lab-icon-button" aria-label="向右移动">→</button><button data-control="jump" class="lab-icon-button" aria-label="跳跃">↑</button></div>
+          </div>
+          <section class="lab-log" aria-labelledby="log-title"><div><h2 id="log-title">实验记录</h2><span>最近 30 条</span></div><ol id="event-log" aria-live="polite" aria-relevant="additions"></ol></section>
+        </section>
+
+        <aside class="lab-panel lab-inspector" aria-labelledby="selected-name">
+          <div class="lab-panel-title"><h2>道具说明</h2><span id="selected-kind" class="lab-count"></span></div>
+          <div class="lab-selected-art"><img id="selected-icon" alt="" /></div>
+          <p id="selected-code" class="lab-eyebrow"></p><h2 id="selected-name"></h2>
+          <p id="selected-description" class="lab-description"></p>
+          <div class="lab-tip"><i data-lucide="lightbulb"></i><p id="selected-tip"></p></div>
+          <div id="piece-controls">
+            <div class="lab-section-label">精确搭建 <span>20 px 网格</span></div>
+            <div class="lab-coordinates"><label>X<input id="place-x" type="number" min="80" max="1520" step="20" value="480" /></label><label>Y<input id="place-y" type="number" min="160" max="760" step="20" value="320" /></label><button id="rotate" class="lab-button" title="旋转 90 度"><i data-lucide="rotate-cw"></i><span id="rotation">0°</span></button></div>
+            <button id="place-exact" class="lab-button teal lab-full"><i data-lucide="plus"></i>在此处放置</button>
+            <p id="placement-feedback" class="lab-feedback" role="status"></p>
+            <button id="delete-selected" class="lab-button lab-full" hidden>删除选中零件</button>
+          </div>
+          <div id="item-controls" hidden>
+            <label id="target-control" class="lab-target">作用对象<select id="item-target"><option value="received">当前角色受击（陪练施放）</option><option value="partner">向陪练施放（观察状态）</option></select></label>
+            <button id="use-item" class="lab-button coral lab-full"><i data-lucide="zap"></i><span>进入试用模式</span><kbd>Q</kbd></button>
+            <p id="item-feedback" class="lab-feedback" role="status">试用时可反复补充；保留原本道具冷却与持续时间。</p>
+          </div>
+          <div class="lab-section-label">当前参数 <span>逻辑像素 / 秒</span></div>
+          <dl id="selected-parameters" class="lab-parameters"></dl>
+          <details class="lab-rules"><summary>搭建与实验规则</summary><p>使用游戏原有放置判定：网格吸附，保留出生区、终点区、角色与机关作用空间。</p><p>测试出生点可放到陷阱附近；机关可能立即触发。死亡后按 R 复位。</p><p>试用中炸毁的零件不会改写搭建方案。重置实验或返回搭建即可恢复。</p><p>陪练用于接收或施放负面道具，固定站立；不是自动寻路机器人。</p></details>
+        </aside>
+      </div>
+      <div id="lab-toast" class="lab-toast" role="status" hidden></div>
+    </main>
+    <script type="module" src="/src/lab/main.js"></script>
+  </body>
+</html>

@@ -29,7 +29,7 @@ function assert(condition, message) {
 }
 
 function absolute(relativePath) {
-  return join(projectRoot, relativePath.replaceAll("/", "\\"));
+  return join(projectRoot, ...relativePath.split(/[\\/]/));
 }
 
 function readText(relativePath) {
@@ -121,6 +121,7 @@ function collectSourceFiles() {
     ...walkFiles("src"),
     ...walkFiles("public/assets"),
     "index.html",
+    "lab.html",
     "package.json",
     "package-lock.json",
     "vite.config.js",

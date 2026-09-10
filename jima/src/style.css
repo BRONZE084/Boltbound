@@ -292,6 +292,10 @@ input:focus-visible {
   width: 100%;
 }
 
+.lab-home-link {
+  text-decoration: none;
+}
+
 .form-error {
   min-height: 20px;
   margin: 0;
