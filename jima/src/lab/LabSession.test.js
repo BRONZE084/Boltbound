@@ -42,7 +42,7 @@ test("delete, custom spawn, clear, undo and redo preserve a recoverable blueprin
   assert.equal(lab.history("redo"), false);
 });
 
-test("a flush beam/crate/ice stack survives undo, JSON import and test reset", () => {
+test("横梁、方箱和冰面的贴边叠放结构支持撤销、JSON 导入与试用重置", () => {
   const lab = new LabSession();
   for (const placement of [piece(), piece("crate", 480, 260), piece("ice", 480, 200)]) {
     assert.ok(lab.place(placement).placement, placement.type);
@@ -80,7 +80,7 @@ test("bomb damage is temporary, obeys real portal pairing, and cannot destroy th
   assert.equal(lab.state.placements.length, 2);
 });
 
-test("barrier paths may cross pieces in either build order and survive JSON import", () => {
+test("路障轨迹可穿过零件，支持两种放置顺序与 JSON 导入", () => {
   for (const placements of [
     [piece("barrier", 480, 600), piece("crate", 600, 600)],
     [piece("crate", 600, 600), piece("barrier", 480, 600)],

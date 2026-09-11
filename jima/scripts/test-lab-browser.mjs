@@ -114,8 +114,8 @@ try {
   await page.waitForFunction(() => document.getElementById("scene-loading").hidden);
   await count(2);
 
-  // Reproduce a crate touching the top of a beam using the real pointer preview,
-  // then stand on a three-piece stack to check the original collision bodies.
+  // 通过实际鼠标预览复现方箱贴在横梁上的放置过程，
+  // 再让人物站上三层结构，验证游戏原有碰撞体的承托效果。
   await page.locator("#clear-map").click();
   await exact("beam", 480, 320);
   await select("crate");
@@ -148,8 +148,8 @@ try {
   await page.locator("#lab-canvas canvas").screenshot({ path: fileURLToPath(new URL("stacking.png", artifacts)) });
   await page.locator("#mode-build").click();
 
-  // Moving barriers use a separate render layer and can run through pieces in
-  // both axes, without losing their collision support for the player.
+  // 验证路障使用独立显示层，能够沿横纵两个方向穿过零件，
+  // 同时保留对人物的碰撞承托效果。
   await page.locator("#clear-map").click();
   await exact("barrier", 480, 600);
   await exact("crate", 600, 600);
@@ -277,8 +277,8 @@ try {
   assert.deepEqual(errors, []);
   await writeFile(new URL("result.json", artifacts), JSON.stringify({ ok: true, catalog: CATALOG.length, errors,
     checked: ["source catalog", "placement validation", "rotation", "delete", "undo/redo", "JSON roundtrip", "reload persistence",
-      "flush stacking preview and pointer placement", "stack penetration rejection", "stack reload and collision support",
-      "barrier render layer", "horizontal and vertical barrier crossing", "barrier player support and build reset",
+      "贴边叠放预览与鼠标放置", "叠放实体穿入拒绝", "叠放结构刷新恢复与碰撞承托",
+      "路障独立显示层", "路障横纵穿行", "路障承托人物与返回搭建复位",
       "paired portal deletion", "real jumping", "reverse input", "shield cleansing", "fog", "bomb recovery", "spike death", "respawn", "responsive layout"] }, null, 2));
   console.log("Trap lab browser checks passed; screenshots and report: artifacts/trap-lab-browser/");
 } catch (error) {

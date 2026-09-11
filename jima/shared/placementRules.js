@@ -11,7 +11,7 @@ import {
 const PLAYER_SPAWN_STEP_X = 44;
 const PLAYER_SPAWN_STEP_Y = 8;
 const SPAWN_PROTECTION_MARGIN = 16;
-// The lab's construction category can share edges without an artificial gap.
+// 实验台的搭建类零件允许边缘相接，不额外要求间隔。
 const CONSTRUCTION_PIECE_TYPES = new Set(["beam", "crate", "barrier", "ice"]);
 const lastSpawnX = SPAWN.x + (GAME.maxPlayers - 1) * PLAYER_SPAWN_STEP_X;
 const highestSpawnY = SPAWN.y - (GAME.maxPlayers - 1) * PLAYER_SPAWN_STEP_Y;
@@ -328,9 +328,8 @@ function blockingRectsForPlacement(placement, portalMode = null) {
   if (placement.type === "portal") {
     return safetyRectsForPlacementInTopology(placement, portalMode);
   }
-  // A barrier occupies only its initial body during construction. Its separate
-  // motion layer may cross other pieces; the full sweep still protects players
-  // and reserved zones and must remain inside the world.
+  // 搭建时只检查路障初始实体的占用范围，独立运动层允许其穿过其他零件。
+  // 完整运动轨迹仍须避开人物和保护区，并保持在地图边界内。
   const body = bodyRect(placement);
   return body ? [body] : [];
 }
@@ -459,8 +458,7 @@ export function validatePlacementSafety(placement, existingPlacements = [], buil
   }
   const hasConflict = existingPlacements.some((other) => {
     const otherBlockingRects = blockingRectsForPlacement(other, portalModes.get(other) || null);
-    // Remove extra clearance between construction pieces, never initial body
-    // overlap or the space reserved for a portal exit.
+    // 搭建类零件可贴边接合，仍禁止初始实体重叠或侵占传送门出口。
     const margin = CONSTRUCTION_PIECE_TYPES.has(placement.type) && CONSTRUCTION_PIECE_TYPES.has(other.type)
       ? 0
       : 8;

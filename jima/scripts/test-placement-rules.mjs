@@ -393,11 +393,11 @@ assert.equal(
   "cannon and laser corridors share the same real occlusion",
 );
 
-// Construction pieces must stack and join at their rotated edges in either
-// placement order, while any real penetration must still be rejected.
+// 搭建零件旋转后仍可贴边叠放、拼接，且不受放置先后顺序影响；
+// 实体发生实际穿入时，必须拒绝放置。
 function assertPlacementPair(first, second, expected, message) {
   assert.equal(validatePlacementSafety(second, [first]), expected, message);
-  assert.equal(validatePlacementSafety(first, [second]), expected, `${message} (reverse order)`);
+  assert.equal(validatePlacementSafety(first, [second]), expected, `${message}（反向放置顺序）`);
 }
 
 for (const firstType of ["beam", "crate", "ice"]) {
@@ -413,10 +413,10 @@ for (const firstType of ["beam", "crate", "ice"]) {
           ["x", (firstSize.width + secondSize.width) / 2],
         ]) {
           const touching = { ...second, [axis]: first[axis] + edgeOffset };
-          const label = `${firstType}@${firstRotation} / ${secondType}@${secondRotation} along ${axis}`;
-          assertPlacementPair(first, touching, null, `${label}: touching edges are valid`);
+          const label = `${firstType}@${firstRotation} / ${secondType}@${secondRotation} 沿 ${axis} 轴`;
+          assertPlacementPair(first, touching, null, `${label}：边缘相接时允许放置`);
           assertPlacementPair(first, { ...touching, [axis]: touching[axis] - Math.sign(edgeOffset) },
-            "piece_overlap", `${label}: even one pixel of penetration is invalid`);
+            "piece_overlap", `${label}：即使仅穿入 1 像素也应拒绝放置`);
         }
       }
     }
@@ -427,32 +427,32 @@ const horizontalBarrier = { type: "barrier", x: 480, y: 600, rotation: 0 };
 const verticalBarrier = { type: "barrier", x: 480, y: 560, rotation: 90 };
 for (const type of ["beam", "crate", "barrier", "ice"]) {
   assertPlacementPair(horizontalBarrier, { type, x: 480, y: 580 - PIECES[type].height / 2, rotation: 0 },
-    null, `${type} can sit flush above a horizontal barrier's travel path`);
+    null, `${type} 可以贴在横向路障运动轨迹的上方`);
   assertPlacementPair(verticalBarrier, { type, x: 500 + PIECES[type].height / 2, y: 560, rotation: 90 },
-    null, `${type} can join beside a vertical barrier's travel path`);
+    null, `${type} 可以贴在纵向路障运动轨迹的侧边`);
 }
 assertPlacementPair(horizontalBarrier, { type: "crate", x: 600, y: 600, rotation: 0 },
-  null, "a barrier's independent layer can move horizontally through a crate");
+  null, "路障的独立图层允许其横向穿过方箱");
 assertPlacementPair(verticalBarrier, { type: "crate", x: 480, y: 440, rotation: 0 },
-  null, "a barrier's independent layer can move vertically through a crate");
+  null, "路障的独立图层允许其纵向穿过方箱");
 assertPlacementPair(horizontalBarrier, { type: "crate", x: 580, y: 600, rotation: 0 },
-  "piece_overlap", "barriers still cannot start inside another piece");
+  "piece_overlap", "路障的初始实体仍不能与其他零件重叠");
 assertPlacementPair(horizontalBarrier, { type: "spikes", x: 660, y: 600, rotation: 0 },
-  null, "a barrier's travel path can also cross another category of piece");
+  null, "路障的运动轨迹也可以穿过其他类别的零件");
 assert.equal(validatePlacementSafety(horizontalBarrier, [], [{ x: 650, y: 600, width: 40, height: 67 }]),
-  "reserved_zone", "a barrier's full sweep still protects a visible player");
+  "reserved_zone", "路障的完整运动轨迹仍须避开当前可见人物");
 assert.equal(validatePlacementSafety({ type: "barrier", x: 1100, y: 600, rotation: 0 }),
-  "reserved_zone", "a barrier's full sweep cannot enter the protected finish column");
+  "reserved_zone", "路障的完整运动轨迹不能进入终点保护区");
 assert.equal(validatePlacementSafety({ type: "barrier", x: 480, y: 720, rotation: 90 }),
-  "out_of_bounds", "a barrier's full sweep cannot leave the world");
+  "out_of_bounds", "路障的完整运动轨迹不能超出地图边界");
 assertPlacementPair(horizontalBarrier, { type: "crate", x: 720, y: 600, rotation: 0 },
-  null, "a crate can touch the outer edge of a barrier's full travel path");
+  null, "方箱可以与路障完整运动轨迹的外缘相接");
 assertPlacementPair({ type: "beam", x: 480, y: 600, rotation: 0 },
   { type: "spikes", x: 480, y: 560, rotation: 0 },
-  "piece_overlap", "construction stacking does not change clearance for other categories");
+  "piece_overlap", "搭建类叠放规则保留其他类别零件的间隔要求");
 assert.equal(validatePlacementSafety({ type: "crate", x: 480, y: 260, rotation: 0 },
   [{ type: "beam", x: 480, y: 320, rotation: 0 }],
   [{ x: 480, y: 260, width: 40, height: 67 }]), "reserved_zone",
-"stacking never bypasses protection for a visible player");
+  "叠放不能绕过对当前可见人物的保护");
 
-console.log("placement rules: lethal void, three-platform descent, local protection, occlusion, and construction stacking verified");
+console.log("放置规则验证通过：坠落死亡、三平台下降路线、局部保护、遮挡与搭建叠放");

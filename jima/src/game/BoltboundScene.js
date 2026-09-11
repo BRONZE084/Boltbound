@@ -245,8 +245,8 @@ export class BoltboundScene extends Phaser.Scene {
     this.platformGroup = this.physics.add.staticGroup();
     this.springGroup = this.physics.add.staticGroup();
     this.hazardGroup = this.physics.add.staticGroup();
-    // Barriers render behind placed pieces and collide with players only.
-    // Their independent physics group has no collider with map/other pieces.
+    // 路障显示在已放置零件的后方，仅与人物进行碰撞解算。
+    // 独立物理组不注册与地图、其他零件或自身组之间的碰撞。
     this.barrierLayer = this.add.layer().setDepth(4.5);
     this.barrierGroup = this.physics.add.group({ allowGravity: false, immovable: true });
     this.conveyorGroup = this.physics.add.staticGroup();
