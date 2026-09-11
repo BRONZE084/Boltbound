@@ -117,8 +117,8 @@ for (let index = 0; index < 4; index += 1) {
   assert.ok(playerY + PLAYER_COLLISION_BOUNDS.bottom <= startPlatform.y - startPlatform.height / 2);
   assert.equal(
     validatePlacementSafety({ type: "crate", x: playerX, y: playerY, rotation: 0 }, [], []),
-    "reserved_zone",
-    "all four initial player collision boxes must remain protected",
+    null,
+    "人物离开后，原出生位置不再保留禁建区",
   );
 }
 assert.equal(WORLD.grid, 20, "fine snapping must support every platform top and piece height");
@@ -129,7 +129,7 @@ const goalColumnHigh = {
   y: 200,
   rotation: 0,
 };
-assert.equal(validatePlacementSafety(goalColumnHigh, [], []), "reserved_zone");
+assert.equal(validatePlacementSafety(goalColumnHigh, [], []), null);
 
 const normalBuildArea = {
   type: "beam",
@@ -173,8 +173,8 @@ assert.equal(
     width: PLAYER_COLLISION_BOUNDS.left + PLAYER_COLLISION_BOUNDS.right,
     height: PLAYER_COLLISION_BOUNDS.top + PLAYER_COLLISION_BOUNDS.bottom,
   }]),
-  "reserved_zone",
-  "the same fan must still reject a visible player inside its effect range",
+  null,
+  "风力作用范围可覆盖人物，风机实体仍不能覆盖人物",
 );
 
 const previousRoundCorpse = {
@@ -255,7 +255,7 @@ const edgeCases = [
   },
   {
     portal: { ...center, y: 700, rotation: 180 },
-    position: { x: 800, y: WORLD.groundY - PLAYER_COLLISION_BOUNDS.bottom },
+    position: { x: 800, y: WORLD.height - PLAYER_COLLISION_BOUNDS.bottom },
     exact: { x: 800, y: 700 + PIECES.portal.soloDistance },
     requested: { x: 0, y: 1 },
     launch: { x: 0, y: -1 },
@@ -282,7 +282,7 @@ for (const expected of edgeCases) {
   assert.deepEqual(exit.exact, expected.exact);
   assert.deepEqual(exit.requestedDirection, expected.requested);
   assert.deepEqual(exit.direction, expected.launch);
-  assert.equal(validatePlacementSafety(expected.portal, [], []), "out_of_bounds");
+  assert.equal(validatePlacementSafety(expected.portal, [], []), null);
 }
 
 const pairedEdgePortal = { type: "portal", x: 1_520, y: 400, rotation: 90 };
@@ -294,7 +294,8 @@ assert.equal(
   validatePlacementSafety(pairedEdgePortal, [
     { type: "portal", x: 800, y: 400, rotation: 0 },
   ], []),
-  "out_of_bounds",
+  null,
+  "边缘传送门可放置，出口按人物尺寸收回画面内",
 );
 
 const soloPortal = { type: "portal", x: 600, y: 200, rotation: 90 };
@@ -338,12 +339,12 @@ assert.equal(
 );
 assert.equal(
   validatePlacementSafety({ type: "portal", x: 1_100, y: 400, rotation: 90 }, [], []),
-  "reserved_zone",
+  null,
 );
 assert.equal(
   validatePlacementSafety({ type: "portal", x: 1_200, y: 580, rotation: 90 }, [], []),
-  "reserved_zone",
-  "a portal exit inside the finish column remains forbidden",
+  null,
+  "传送出口可以位于原终点保护区域",
 );
 
 const transitionsFromSolo = { type: "portal", x: 600, y: 260, rotation: 90 };
@@ -384,8 +385,8 @@ assert.equal(
   validatePlacementSafety(laserBehindBaseBlocker, [], [
     { x: 1_200, y: 700, width: 40, height: 80 },
   ]),
-  "reserved_zone",
-  "a visible player before the first blocker remains protected",
+  null,
+  "激光作用范围可覆盖人物，搭建时只检查实体与出口占用",
 );
 assert.equal(
   validatePlacementSafety({ type: "cannon", x: 1_100, y: 700, rotation: 90 }, [], []),
@@ -440,11 +441,11 @@ assertPlacementPair(horizontalBarrier, { type: "crate", x: 580, y: 600, rotation
 assertPlacementPair(horizontalBarrier, { type: "spikes", x: 660, y: 600, rotation: 0 },
   null, "路障的运动轨迹也可以穿过其他类别的零件");
 assert.equal(validatePlacementSafety(horizontalBarrier, [], [{ x: 650, y: 600, width: 40, height: 67 }]),
-  "reserved_zone", "路障的完整运动轨迹仍须避开当前可见人物");
+  null, "路障运动轨迹可经过人物位置，运行时进行碰撞");
 assert.equal(validatePlacementSafety({ type: "barrier", x: 1100, y: 600, rotation: 0 }),
-  "reserved_zone", "路障的完整运动轨迹不能进入终点保护区");
+  null, "路障的完整运动轨迹可以进入原终点保护区");
 assert.equal(validatePlacementSafety({ type: "barrier", x: 480, y: 720, rotation: 90 }),
-  "out_of_bounds", "路障的完整运动轨迹不能超出地图边界");
+  null, "路障靠近画面边缘时可以搭建，运行时自动限制行程");
 assertPlacementPair(horizontalBarrier, { type: "crate", x: 720, y: 600, rotation: 0 },
   null, "方箱可以与路障完整运动轨迹的外缘相接");
 assertPlacementPair({ type: "beam", x: 480, y: 600, rotation: 0 },
@@ -455,4 +456,43 @@ assert.equal(validatePlacementSafety({ type: "crate", x: 480, y: 260, rotation: 
   [{ x: 480, y: 260, width: 40, height: 67 }]), "reserved_zone",
   "叠放不能绕过对当前可见人物的保护");
 
-console.log("放置规则验证通过：坠落死亡、三平台下降路线、局部保护、遮挡与搭建叠放");
+for (const type of Object.keys(PIECES)) {
+  for (const rotation of [0, 90, 180, 270]) {
+    for (const [x, y] of [[0, 0], [800, 0], [1600, 0], [0, 300], [1600, 300],
+      [0, 900], [800, 900], [1600, 900]]) {
+      assert.equal(validatePlacementSafety({ type, rotation, x, y }), type === "windmill" && x === 0 && y === 300 ? "piece_overlap" : null,
+        `${type}@${rotation}：边缘 ${x},${y} 可搭建，但实体不能与场景平台重叠`);
+    }
+    for (const [x, y] of [[-20, 400], [1620, 400], [800, -20], [800, 920], [NaN, 400], [800, Infinity]]) {
+      assert.equal(validatePlacementSafety({ type, rotation, x, y }), "out_of_bounds",
+        `${type}@${rotation}：真实越界或非有限坐标仍须拒绝`);
+    }
+  }
+}
+
+console.log("放置规则验证通过：坠落死亡、三平台下降路线、全画面搭建、实体保护、遮挡与搭建叠放");
+
+for (const type of Object.keys(PIECES)) {
+  assert.equal(validatePlacementSafety({ type, x: 1500, y: 580, rotation: 0 }), "goal_blocked",
+    `${type} 不能封住旗子`);
+}
+assert.equal(validatePlacementSafety({ type: "crate", x: 1420, y: 580, rotation: 0 }), null,
+  "旗子左边只差 5 像素的方箱应允许放置");
+for (const [type, x, y] of [["barrier", 1280, 540], ["windmill", 1320, 450], ["rotatingCrate", 1420, 580]]) {
+  assert.equal(validatePlacementSafety({ type, x, y, rotation: 0 }), "goal_blocked",
+    `${type} 初始未覆盖旗子、运动后会遮挡碰撞体时也应拒绝`);
+}
+for (const [x, y] of [[1425, 580], [1595, 580], [1500, 490], [1500, 700]]) {
+  assert.equal(validatePlacementSafety({ type: "crate", x, y, rotation: 0 }), null,
+    `贴在旗子碰撞体边缘 ${x},${y} 的实体应允许放置`);
+}
+for (const [x, y] of [[1426, 580], [1594, 580], [1500, 491], [1500, 699]]) {
+  assert.equal(validatePlacementSafety({ type: "crate", x, y, rotation: 0 }), "goal_blocked",
+    `侵入旗子碰撞体 1 像素时应拒绝`);
+}
+console.log("旗子碰撞体保护验证通过：贴边可放，侵入与运动遮挡拒绝");
+
+assert.equal(validatePlacementSafety({ type: "barrier", x: 1500, y: 780, rotation: 90 }), null,
+  "靠近底边时路障实际行程缩为 40，轨迹仅贴旗子下沿，不应多算 120 的行程");
+assert.equal(validatePlacementSafety({ type: "windmill", x: 1284, y: 500, rotation: 0 }), null,
+  "风车最右侧只到 1464，不能用更大的外接圆误挡旗子左边 1465");

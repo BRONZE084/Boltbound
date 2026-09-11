@@ -86,7 +86,7 @@
           <div class="lab-tip"><i data-lucide="lightbulb"></i><p id="selected-tip"></p></div>
           <div id="piece-controls">
             <div class="lab-section-label">精确搭建 <span>20 px 网格</span></div>
-            <div class="lab-coordinates"><label>X<input id="place-x" type="number" min="80" max="1520" step="20" value="480" /></label><label>Y<input id="place-y" type="number" min="160" max="760" step="20" value="320" /></label><button id="rotate" class="lab-button" title="旋转 90 度"><i data-lucide="rotate-cw"></i><span id="rotation">0°</span></button></div>
+            <div class="lab-coordinates"><label>X<input id="place-x" type="number" min="0" max="1600" step="20" value="480" /></label><label>Y<input id="place-y" type="number" min="0" max="900" step="20" value="320" /></label><button id="rotate" class="lab-button" title="旋转 90 度"><i data-lucide="rotate-cw"></i><span id="rotation">0°</span></button></div>
             <button id="place-exact" class="lab-button teal lab-full"><i data-lucide="plus"></i>在此处放置</button>
             <p id="placement-feedback" class="lab-feedback" role="status"></p>
             <button id="delete-selected" class="lab-button lab-full" hidden>删除选中零件</button>
@@ -98,7 +98,7 @@
           </div>
           <div class="lab-section-label">当前参数 <span>逻辑像素 / 秒</span></div>
           <dl id="selected-parameters" class="lab-parameters"></dl>
-          <details class="lab-rules"><summary>搭建与实验规则</summary><p>使用游戏原有放置判定：网格吸附，保留出生区、终点区、角色与机关作用空间。</p><p>测试出生点可放到陷阱附近；机关可能立即触发。死亡后按 R 复位。</p><p>试用中炸毁的零件不会改写搭建方案。重置实验或返回搭建即可恢复。</p><p>陪练用于接收或施放负面道具，固定站立；不是自动寻路机器人。</p></details>
+          <details class="lab-rules"><summary>搭建与实验规则</summary><p>画面内按 20 像素网格搭建；绿色区域仅为旗子碰撞体，允许贴边搭建；零件及运动轨迹不能侵入旗子。人物和已有零件的实体仍检查占用。</p><p>测试出生点可放到陷阱附近；机关可能立即触发。死亡后按 R 复位。</p><p>试用中炸毁的零件不会改写搭建方案。重置实验或返回搭建即可恢复。</p><p>陪练用于接收或施放负面道具，固定站立；不是自动寻路机器人。</p></details>
         </aside>
       </div>
       <div id="lab-toast" class="lab-toast" role="status" hidden></div>

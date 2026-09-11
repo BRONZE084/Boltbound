@@ -35,6 +35,8 @@ export const PIECES = Object.freeze({
   spikes: { width: 80, height: 40, label: "尖刺", rotatable: true },
   fan: { width: 80, height: 80, label: "\u98ce\u673a", rotatable: true, effectRange: 320, effectWidth: 160, force: 2_400 },
   barrier: { width: 160, height: 40, label: "\u79fb\u52a8\u8def\u969c", rotatable: true, travelRange: 120, periodMs: 2_800 },
+  windmill: { width: 360, height: 360, label: "风车平台", rotatable: true, orbitRadius: 120, platformWidth: 120, platformHeight: 24, spinPeriodMs: 8_000 },
+  rotatingCrate: { width: 80, height: 80, label: "旋转方箱", rotatable: true, spinPeriodMs: 6_000, quarterPauseMs: 350 },
   blackhole: { width: 100, height: 100, label: "\u9ed1\u6d1e", rotatable: true, effectRadius: 190, coreRadius: 34, force: 1_250 },
   portal: { width: 80, height: 120, label: "\u4f20\u9001\u95e8", rotatable: true, triggerRadius: 58, cooldownMs: 700, exitOffset: 88, soloDistance: 280, exitSpeed: 560 },
   conveyor: { width: 160, height: 40, label: "\u4f20\u9001\u5e26", rotatable: true, speed: 420, acceleration: 2_200, contactGraceMs: 90 },
@@ -139,3 +141,11 @@ export const BASE_PLATFORMS = Object.freeze([
 
 export const SPAWN = Object.freeze({ x: 80, y: 142 });
 export const GOAL = Object.freeze({ x: 1510, y: 595, width: 90, height: 130 });
+
+// 保护范围严格等于旗子的碰撞体，不额外扩展通道或落脚空间。
+export const GOAL_BUILD_CLEARANCE = Object.freeze({
+  left: GOAL.x - GOAL.width / 2,
+  right: GOAL.x + GOAL.width / 2,
+  top: GOAL.y - GOAL.height / 2,
+  bottom: GOAL.y + GOAL.height / 2,
+});

@@ -21,9 +21,9 @@ assert.equal(
   "the attraction radius may reach the local spawn envelope",
 );
 assert.equal(
-  validatePlacementSafety({ type: "blackhole", x: 280, y: 200, rotation: 0 }, [], []),
-  "reserved_zone",
-  "the solid body may not cover the local spawn envelope",
+  validatePlacementSafety({ type: "blackhole", x: 280, y: 100, rotation: 0 }, [], []),
+  null,
+  "出生区空位允许放置，实际人物和固定平台仍单独检查",
 );
 assert.equal(
   validatePlacementSafety({ type: "blackhole", x: 1_100, y: 300, rotation: 0 }, [], []),
@@ -32,8 +32,8 @@ assert.equal(
 );
 assert.equal(
   validatePlacementSafety({ type: "blackhole", x: 1_240, y: 300, rotation: 0 }, [], []),
-  "reserved_zone",
-  "the solid body may not cover the finish protection column",
+  null,
+  "终点区域的空位允许放置",
 );
 
 const middlePlatform = BASE_PLATFORMS.find((platform) => platform.id === "middle-step");
@@ -64,8 +64,8 @@ assert.equal(
 );
 assert.equal(
   validatePlacementSafety({ type: "blackhole", x: 180, y: 300, rotation: 0 }, [], []),
-  "out_of_bounds",
-  "the full attraction radius must remain inside the world",
+  null,
+  "吸引范围超出画面不影响放置",
 );
 
 console.log("black hole placement: effect range and solid-body safety verified");

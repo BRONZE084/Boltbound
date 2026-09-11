@@ -1,14 +1,16 @@
 import { ACTIVE_ITEMS, PIECES } from "../../shared/gameConfig.js";
 import { GAME_ASSETS } from "../../shared/gameAssets.js";
 
-// Explanations of the existing scene behavior, not a second set of game parameters.
+// 目录解释共用场景的实际行为；数值直接读取共享配置，避免维护两套参数。
 const PIECE_NOTES = {
   beam: ["搭建", "静态平台，用来接路、承托角色或改变落点。", "与搭建类零件贴边拼接或叠放，也可旋转成竖墙测试蹬墙。"],
   crate: ["搭建", "静态方箱，提供落脚点并阻挡角色。", "将方箱贴在横梁上，或继续叠放方箱和冰面，测试跳跃高度。"],
   spring: ["动力", "从有效接触面沿旋转朝向弹射角色。", "从弹簧正面和侧面分别接近，比较触发方向。"],
   spikes: ["陷阱", "接触危险区域后角色死亡。", "测试跳跃避让与落点；防护盾不能抵挡机关伤害。"],
   fan: ["动力", "在朝向范围内持续吹动角色，风力随距离衰减。", "旋转风机，比较迎风、顺风和空中的运动。"],
-  barrier: ["搭建", "在独立运动层往返移动，可穿过其他零件，仍与角色碰撞。", "在路障轨迹上放置方箱，观察它从方箱后方穿行；旋转后可测试上下运动。"],
+  barrier: ["搭建", "在独立运动层往返移动，可穿过其他零件，仍与角色碰撞。", "在路障轨迹上放置方箱，观察它从方箱前方穿行；旋转后可测试上下运动。"],
+  windmill: ["搭建", "四个水平平台绕中心转动，人物可随平台绕轴运动。", "把出生点设在某个平台上方，测试搭乘、跳到相邻平台以及与固定结构交错。"],
+  rotatingCrate: ["搭建", "方箱绕自身中心旋转，每转 90° 停顿 0.35 秒，四条边都能与人物碰撞。", "从上方落到转动的箱面，观察落脚面变化；旋转按钮调整初始角度。"],
   blackhole: ["陷阱", "范围内吸引角色，进入核心区域后死亡。", "从不同方向靠近，试试跳跃、风机与吸引力的组合。"],
   portal: ["传送", "按放置顺序两两配对，出口方向由旋转决定；单门沿自身朝向传送。", "先测试单门，再放第二扇测试配对；删除或炸毁配对门会同时移除另一扇。"],
   conveyor: ["动力", "接触带面后沿传送带方向推动角色。", "比较顺向行走、逆向行走与松开方向键后的运动。"],
@@ -41,6 +43,7 @@ const PARAMETER_LABELS = {
   projectileRadius: "炮弹半径", warningMs: "预警时间", muzzleOffset: "发射点偏移",
   beamWidth: "射线宽度", activeMs: "激活时间", launchSpeed: "弹射速度",
   boostGraceMs: "速度宽限", radius: "爆炸半径",
+  quarterPauseMs: "每 90° 停顿", orbitRadius: "回转半径", platformWidth: "平台宽度", platformHeight: "平台厚度",
 };
 
 export const CATALOG = Object.entries({ ...PIECES, ...ACTIVE_ITEMS }).map(([type, config]) => {

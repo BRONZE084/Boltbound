@@ -4,7 +4,7 @@ import { Construction, FolderOpen, Download, Hammer, Play, Plus, MousePointer2, 
 import "../style.css";
 import "./lab.css";
 import { ACTIVE_ITEMS, VIEWPORT } from "../../shared/gameConfig.js";
-import { validatePlacementSafety } from "../../shared/placementRules.js";
+import { validatePlacementSafety, placementBlocksGoal } from "../../shared/placementRules.js";
 import { GameAudio } from "../audio/GameAudio.js";
 import { BrowserAudioBackend } from "../audio/BrowserAudioBackend.js";
 import { LabScene } from "./LabScene.js";
@@ -53,7 +53,8 @@ function save() {
 let restored = false;
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) { session.importPlan(JSON.parse(saved)); session.undoStack = []; restored = true; }
+  // 保留旧方案中的遮挡零件供用户清理；手动导入继续使用严格校验。
+  if (saved) { session.importPlan(JSON.parse(saved), { allowGoalOverlap: true }); session.undoStack = []; restored = true; }
 } catch { notify("未能恢复上次方案。可通过导入重新加载，当前实验仍可使用。"); }
 
 const scene = new LabScene({
@@ -64,6 +65,11 @@ const scene = new LabScene({
     syncScene();
     renderControls();
     log(restored ? "已恢复上次搭建方案。" : "实验场已准备好。选择零件，开始搭建。" );
+    const blocked = session.blueprint.filter(placementBlocksGoal).length;
+    if (blocked) {
+      const message = `原方案有 ${blocked} 件零件挡住终点，已保留在搭建模式。请删除或调整后再试用。`;
+      notify(message); log(message);
+    }
   },
   onPreviewChanged: () => updatePreviewFeedback(),
   onPreviewRotated: (angle) => { $("rotation").textContent = `${angle}°`; },
@@ -182,7 +188,8 @@ function selectType(type, placeTool = true) {
 function setMode(mode) {
   if (!ready) return;
   const testing = mode === "test";
-  session.enterMode(mode);
+  const result = session.enterMode(mode);
+  if (result?.error) { notify(PLACEMENT_ERRORS[result.error]); return; }
   selectedPlacementId = null;
   goalNotified = false;
   clearInput();

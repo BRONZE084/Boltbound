@@ -196,13 +196,29 @@ test("socket protocol rejects a forged goal jump and accepts a bounded route", {
       });
       assert.equal(bodyCovered.ok, false);
       assert.equal(bodyCovered.errorCode, "reserved_zone");
-      const screenshotPlacement = await emitAck(socket, "build:place", {
+      const goalCovered = await emitAck(socket, "build:place", {
         round: build.round,
         buildId: build.build.buildId,
-        placement: { type: "fan", x: 220, y: 260, rotation: 90 },
+        placement: { type: "fan", x: 1500, y: 580, rotation: 90 },
         actionId: randomUUID(),
       });
-      assert.equal(screenshotPlacement.ok, true);
+      assert.equal(goalCovered.ok, false, "服务端必须拒绝覆盖终点旗子的搭建");
+      assert.equal(goalCovered.errorCode, "goal_blocked");
+      const outside = await emitAck(socket, "build:place", {
+        round: build.round,
+        buildId: build.build.buildId,
+        placement: { type: "fan", x: 1620, y: 900, rotation: 90 },
+        actionId: randomUUID(),
+      });
+      assert.equal(outside.ok, false, "画面以外的中心坐标仍应拒绝");
+      assert.equal(outside.errorCode, "out_of_bounds");
+      const edgePlacement = await emitAck(socket, "build:place", {
+        round: build.round,
+        buildId: build.build.buildId,
+        placement: { type: "fan", x: 1600, y: 900, rotation: 90 },
+        actionId: randomUUID(),
+      });
+      assert.equal(edgePlacement.ok, true, "服务端应接受右下角的零件中心与部分伸出画面的实体");
     }
 
     const loading = build.phase === "race_loading"

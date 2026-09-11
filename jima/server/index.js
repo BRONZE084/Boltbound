@@ -556,7 +556,7 @@ function validatePlacement(room, placement, expectedType) {
     return { ok: false, errorCode: "invalid_piece" };
   }
   const normalized = { type, rotation, x, y, ...dimensions };
-  if (x < 80 || x > WORLD.width - 80 || y < 160 || y > WORLD.groundY - 40) {
+  if (x < 0 || x > WORLD.width || y < 0 || y > WORLD.height) {
     return { ok: false, errorCode: "out_of_bounds" };
   }
   const safetyError = validatePlacementSafety(

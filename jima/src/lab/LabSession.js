@@ -1,14 +1,15 @@
 import { ACTIVE_ITEMS, DEBUFF_IMMUNITY_MS, PIECES, PLAYER_COLLISION_BOUNDS, SPAWN, WORLD } from "../../shared/gameConfig.js";
-import { dimensionsForPiece, normalizedRotation, portalLinksForPlacements, validatePlacementSafety } from "../../shared/placementRules.js";
+import { dimensionsForPiece, normalizedRotation, placementCenterInsideWorld, portalLinksForPlacements, placementBlocksGoal, validatePlacementSafety } from "../../shared/placementRules.js";
 import { buildItemTargetOptions } from "../../shared/itemTargets.js";
 import { resolveBombBlast } from "../../server/bombLogic.js";
 
 export const PLAYER_ID = "lab-player";
 export const PARTNER_ID = "lab-partner";
 export const PLACEMENT_ERRORS = {
-  out_of_bounds: "零件或完整作用范围超出搭建边界。试试旋转或向场地中心移动。",
-  reserved_zone: "出生区、终点保护区或角色附近需要留出空间。",
-  piece_overlap: "零件、作用区域或传送出口与现有物体冲突。",
+  out_of_bounds: "零件中心须位于画面内：X 为 0–1600，Y 为 0–900。",
+  goal_blocked: "零件实体或运动轨迹不能遮挡旗子的碰撞体。",
+  reserved_zone: "零件实体或传送出口不能覆盖当前人物。",
+  piece_overlap: "零件实体或传送出口与现有物体冲突。",
   invalid_piece: "请选择源码中已有的搭建零件。",
   invalid_position: "坐标必须位于搭建范围内，并吸附到 20 像素网格。",
   invalid_phase: "请先返回搭建模式。",
@@ -69,7 +70,7 @@ export class LabSession {
     const rotation = normalizedRotation(input.rotation ?? 0);
     const { x, y } = input;
     if (rotation === null || !Number.isFinite(x) || !Number.isFinite(y) ||
-      x < 80 || x > WORLD.width - 80 || y < 160 || y > WORLD.groundY - 40 ||
+      !placementCenterInsideWorld({ x, y }) ||
       x % WORLD.grid !== 0 || y % WORLD.grid !== 0) return { error: "invalid_position" };
     return { placement: { type: input.type, x, y, rotation, ...dimensionsForPiece(input.type, rotation) } };
   }
@@ -130,6 +131,7 @@ export class LabSession {
   }
 
   enterMode(mode, now = Date.now()) {
+    if (mode === "test" && this.blueprint.some(placementBlocksGoal)) return { error: "goal_blocked" };
     this.state = {
       ...this.state, phase: mode === "test" ? "race" : "build",
       players: this.state.players.map((player) => ({ ...player, status: "racing" })),
@@ -189,19 +191,19 @@ export class LabSession {
       placements: this.blueprint.map(({ type, x, y, rotation }) => ({ type, x, y, rotation })) };
   }
 
-  importPlan(value) {
+  importPlan(value, { allowGoalOverlap = false } = {}) {
     if (this.state.phase !== "build") throw new Error("请先返回搭建模式。");
     if (value?.format !== "boltbound-trap-lab" || value.version !== 1 ||
       !Array.isArray(value.placements) || value.placements.length > 300) throw new Error("不是有效的实验方案（最多 300 件）。");
     const spawn = value.spawn;
     if (!spawn || !Number.isFinite(spawn.x) || !Number.isFinite(spawn.y) ||
       spawn.x < 24 || spawn.x > WORLD.width - 24 || spawn.y < 40 || spawn.y > WORLD.height - 50) throw new Error("实验出生点无效。");
-    // Validate the whole document before modifying the current experiment. A custom
-    // spawn may intentionally be next to/inside a hazard to reproduce a collision.
+    // 整份方案通过校验后才修改当前实验；自定义出生点可设在危险区内复现碰撞。
+    // 旗子重叠例外只用于恢复旧浏览器存档，进入试用仍须通过旗子遮挡检查。
     const placements = [];
     for (const input of value.placements) {
       const normalized = this.normalizePlacement(input);
-      const error = normalized.error || validatePlacementSafety(normalized.placement, placements, []);
+      const error = normalized.error || validatePlacementSafety(normalized.placement, placements, [], { allowGoalOverlap });
       if (error) throw new Error(PLACEMENT_ERRORS[error]);
       placements.push({ ...normalized.placement, id: `lab-${this.sequence + placements.length + 1}`, ownerId: PLAYER_ID, round: 1 });
     }

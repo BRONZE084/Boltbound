@@ -12,12 +12,12 @@ test("catalog covers every original piece and item with original configuration o
   for (const entry of CATALOG) assert.equal(entry.config, source[entry.type]);
 });
 
-test("invalid placements never change the plan or undo history", () => {
+test("无效搭建不能修改方案或撤销历史", () => {
   const lab = new LabSession();
   assert.ok(lab.place(piece()).placement);
   const before = lab.exportPlan();
   assert.equal(lab.place(piece()).error, "piece_overlap");
-  assert.equal(lab.place(piece("beam", 1400, 320)).error, "reserved_zone");
+  assert.equal(lab.place(piece("beam", 1620, 320)).error, "invalid_position");
   assert.equal(lab.place(piece("beam", 481, 320)).error, "invalid_position");
   assert.equal(lab.place(piece("turbo")).error, "invalid_piece");
   assert.deepEqual(lab.exportPlan(), before);
@@ -167,11 +167,59 @@ test("JSON round-trips source types, rotation and spawn; malformed imports are a
     { ...plan, spawn: { x: "480", y: 210 } },
     { ...plan, placements: [...plan.placements, piece("invented")] },
     { ...plan, placements: [...plan.placements, piece("constructor")] },
-    { ...plan, placements: [piece("beam", 1400, 320)] },
+    { ...plan, placements: [piece("beam", 1620, 320)] },
   ]) {
     const historySize = second.undoStack.length;
     assert.throws(() => second.importPlan(bad));
     assert.deepEqual(second.exportPlan(), plan);
     assert.equal(second.undoStack.length, historySize);
   }
+});
+
+
+test("画面四边四角及原禁建空位支持搭建、导入和试用重置", () => {
+  const lab = new LabSession();
+  for (const [x, y] of [[0, 0], [800, 0], [1600, 0], [0, 400], [1600, 400],
+    [0, 900], [800, 900], [1600, 900], [1400, 320], [200, 80]]) {
+    assert.ok(lab.place(piece("crate", x, y)).placement, `${x},${y}`);
+  }
+  const plan = lab.exportPlan();
+  const imported = new LabSession();
+  imported.importPlan(JSON.parse(JSON.stringify(plan)));
+  assert.deepEqual(imported.exportPlan(), plan);
+  imported.enterMode("test", 1000);
+  assert.equal(imported.state.placements.length, 10);
+  imported.enterMode("build");
+  assert.deepEqual(imported.exportPlan(), plan);
+  assert.equal(lab.place(piece("crate", 80, 140)).error, "reserved_zone",
+    "当前人物所在位置仍须留出空间");
+});
+
+
+test("新运动零件支持导入、旋转、试用重置和炸弹移除", () => {
+  const lab = new LabSession();
+  assert.ok(lab.place(piece("windmill", 400, 560)).placement);
+  assert.ok(lab.place(piece("rotatingCrate", 1000, 560, 90)).placement);
+  const plan = lab.exportPlan();
+  const restored = new LabSession();
+  restored.importPlan(plan);
+  assert.deepEqual(restored.exportPlan(), plan);
+  restored.enterMode("test", 1000);
+  assert.equal(restored.useItem("bomb", { position: { x: 400, y: 560 }, now: 1100 }).blast.removedPlacementIds.length, 1);
+  restored.enterMode("build");
+  assert.deepEqual(restored.exportPlan(), plan);
+});
+
+test("旗子遮挡无法新建或导入，旧浏览器方案保留供编辑且不能开始试用", () => {
+  const lab = new LabSession();
+  assert.equal(lab.place(piece("beam", 1500, 600)).error, "goal_blocked");
+  const blocked = { ...lab.exportPlan(), placements: [piece("beam", 1500, 600)] };
+  assert.throws(() => lab.importPlan(blocked), /旗子/);
+  lab.importPlan(blocked, { allowGoalOverlap: true });
+  assert.equal(lab.blueprint.length, 1);
+  assert.equal(lab.enterMode("test").error, "goal_blocked");
+  assert.equal(lab.state.phase, "build");
+  lab.remove(lab.blueprint[0].id);
+  lab.enterMode("test");
+  assert.equal(lab.state.phase, "race");
 });

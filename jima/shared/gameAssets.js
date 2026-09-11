@@ -34,6 +34,8 @@ export const GAME_ASSETS = Object.freeze([
   defineAsset({ textureKey: "piece-fog", width: 96, height: 96, needsTransparency: true, activeItemType: "fog" }),
   defineAsset({ textureKey: "piece-bomb", width: 96, height: 96, needsTransparency: true, activeItemType: "bomb" }),
   defineAsset({ textureKey: "piece-barrier", width: 160, height: 40, needsTransparency: true, pieceType: "barrier" }),
+  defineAsset({ textureKey: "piece-windmill", width: 360, height: 360, needsTransparency: true, pieceType: "windmill" }),
+  defineAsset({ textureKey: "piece-rotating-crate", width: 88, height: 88, needsTransparency: true, pieceType: "rotatingCrate" }),
   defineAsset({ textureKey: "piece-beam", width: 180, height: 52, needsTransparency: true, pieceType: "beam" }),
   defineAsset({ textureKey: "piece-blackhole", width: 100, height: 100, needsTransparency: true, pieceType: "blackhole" }),
   defineAsset({ textureKey: "piece-bumper", width: 96, height: 96, needsTransparency: true, pieceType: "bumper" }),

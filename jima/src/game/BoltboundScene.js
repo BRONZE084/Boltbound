@@ -3,6 +3,7 @@ import {
   ACTIVE_ITEMS,
   BASE_PLATFORMS,
   GOAL,
+  GOAL_BUILD_CLEARANCE,
   PIECES,
   PLAYER_COLLISION_BOUNDS,
   PLAYER_STYLES,
@@ -19,6 +20,8 @@ import {
   portalModeForPlacement,
   validatePlacementSafety,
 } from "../../shared/placementRules.js";
+
+import { rotatePoint, rectCorners, rotatingRectContact, rotatingSurface, steppedRotationAngle } from "../../shared/rotatingGeometry.js";
 
 const assetForPiece = PIECE_TEXTURE_KEYS;
 
@@ -195,6 +198,9 @@ export class BoltboundScene extends Phaser.Scene {
     this.hasServerTimeSample = false;
     this.serverTimeFallbackSet = false;
     this.movingBarriers = [];
+    this.windmills = [];
+    this.rotatingCrates = [];
+    this.ignoredRotatingCrates?.clear();
     this.fanEffects = [];
     this.blackHoles = [];
     this.portals = [];
@@ -245,10 +251,26 @@ export class BoltboundScene extends Phaser.Scene {
     this.platformGroup = this.physics.add.staticGroup();
     this.springGroup = this.physics.add.staticGroup();
     this.hazardGroup = this.physics.add.staticGroup();
-    // 路障显示在已放置零件的后方，仅与人物进行碰撞解算。
+    // 运动件显示在静止结构上方、人物下方，仅与人物进行碰撞解算。
     // 独立物理组不注册与地图、其他零件或自身组之间的碰撞。
-    this.barrierLayer = this.add.layer().setDepth(4.5);
+    this.barrierLayer = this.add.layer().setDepth(6.5);
     this.barrierGroup = this.physics.add.group({ allowGravity: false, immovable: true });
+    this.barrierSupport = null;
+    this.rotatingSupport = null;
+    this.rotatingCrates = [];
+    this.windmills = [];
+    this.ignoredRotatingCrates = new Set();
+    this.ignoredBarrierSupports = new Set();
+    // 在物理步开始前设置路障位置，并按实际位移带动站立人物。
+    // 若在场景 update 中再次移动碰撞体，帧末同步会重复叠加位移并造成抖动。
+    this.events.on(Phaser.Scenes.Events.PRE_UPDATE, this.updateMovingBarriers, this);
+    this.physics.world.on(Phaser.Physics.Arcade.Events.WORLD_STEP, this.finishMovingBarrierStep, this);
+    this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.finishBarrierSupportFrame, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.PRE_UPDATE, this.updateMovingBarriers, this);
+      this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.finishBarrierSupportFrame, this);
+      this.physics.world?.off(Phaser.Physics.Arcade.Events.WORLD_STEP, this.finishMovingBarrierStep, this);
+    });
     this.conveyorGroup = this.physics.add.staticGroup();
     this.iceGroup = this.physics.add.staticGroup();
 
@@ -257,6 +279,15 @@ export class BoltboundScene extends Phaser.Scene {
       .setDisplaySize(GOAL.width, GOAL.height)
       .setDepth(5);
     this.goal.refreshBody();
+    this.goal.setDepth(6.8);
+    const clearance = GOAL_BUILD_CLEARANCE;
+    this.goalProtection = this.add.graphics().setDepth(2);
+    this.goalProtection.fillStyle(0x78a95f, 0.08).lineStyle(2, 0x78a95f, 0.5);
+    this.goalProtection.fillRect(clearance.left, clearance.top,
+      clearance.right - clearance.left, clearance.bottom - clearance.top);
+    this.goalProtection.strokeRect(clearance.left, clearance.top,
+      clearance.right - clearance.left, clearance.bottom - clearance.top);
+
 
     const keyboard = this.input.keyboard;
     this.cursors = keyboard?.createCursorKeys() || {
@@ -525,6 +556,7 @@ export class BoltboundScene extends Phaser.Scene {
     const y = Number(motion.y);
     if (!local?.body || !Number.isFinite(x) || !Number.isFinite(y)) return false;
 
+    this.releaseBarrierSupport();
     const safeX = Phaser.Math.Clamp(x, 0, WORLD.width);
     const safeY = Phaser.Math.Clamp(y, -100, WORLD.height + 120);
     local.body.enable = true;
@@ -585,7 +617,13 @@ export class BoltboundScene extends Phaser.Scene {
         sprite.setBounce(0.02);
         sprite.setDragX(PLAYER_DRAG_X);
         this.physics.add.collider(sprite, this.platformGroup);
-        this.physics.add.collider(sprite, this.barrierGroup);
+        this.physics.add.collider(sprite, this.barrierGroup, (local, barrier) => {
+          if (local.body.touching.down && barrier.body.touching.up &&
+              Math.abs(local.body.bottom - barrier.body.top) < 0.1) {
+            this.attachBarrierSupport(barrier);
+          }
+        }, (_local, barrier) => barrier !== this.barrierSupport &&
+          !this.ignoredBarrierSupports.has(barrier));
         this.physics.add.collider(sprite, this.springGroup, (local, spring) => {
           this.bounceLocalPlayer(local, spring);
         });
@@ -732,12 +770,17 @@ export class BoltboundScene extends Phaser.Scene {
 
   rebuildMap() {
     if (!this.platformGroup) return;
+    this.releaseBarrierSupport();
+    this.ignoredBarrierSupports?.clear();
     for (const decoration of this.mapDecorations) decoration.destroy();
     this.mapDecorations = [];
     this.barrierGroup?.clear(true, true);
     this.conveyorGroup?.clear(true, true);
     this.iceGroup?.clear(true, true);
     this.movingBarriers = [];
+    this.windmills = [];
+    this.rotatingCrates = [];
+    this.ignoredRotatingCrates?.clear();
     this.fanEffects = [];
     this.blackHoles = [];
     this.portals = [];
@@ -803,6 +846,43 @@ export class BoltboundScene extends Phaser.Scene {
       const key = assetForPiece[placement.type];
       const dimensions = this.pieceDimensions(placement.type, placement.rotation);
       if (!key || !dimensions) continue;
+      if (placement.type === "windmill") {
+        // 四个承托面沿圆周移动并保持水平；轮辐只绘制装饰，不添加碰撞体。
+        const config = PIECES.windmill;
+        const graphics = this.add.graphics();
+        this.barrierLayer.add(graphics);
+        this.mapDecorations.push(graphics);
+        const mill = { ...placement, graphics, platforms: [] };
+        this.windmills.push(mill);
+        for (let index = 0; index < 4; index += 1) {
+          const phase = ((placement.rotation || 0) + index * 90) * Math.PI / 180;
+          const x = placement.x + Math.cos(phase) * config.orbitRadius;
+          const y = placement.y + Math.sin(phase) * config.orbitRadius;
+          const sprite = this.physics.add.image(x, y, "piece-barrier");
+          this.barrierLayer.add(sprite);
+          this.barrierGroup.add(sprite);
+          sprite.setDisplaySize(config.platformWidth, config.platformHeight)
+            .setImmovable(true).setPushable(false).setFriction(0, 0);
+          sprite.body.setAllowGravity(false).setDirectControl(true);
+          sprite.body.updateFromGameObject();
+          this.movingBarriers.push({ sprite, baseX: x, baseY: y, orbit: { x: placement.x, y: placement.y, phase },
+            width: config.platformWidth, height: config.platformHeight, placementIndex });
+          mill.platforms.push(sprite);
+        }
+        continue;
+      }
+      if (placement.type === "rotatingCrate") {
+        // 箱体使用真实旋转矩形处理碰撞，避免 Arcade 轴对齐外框挡住倾斜后的空角。
+        const image = this.add.image(placement.x, placement.y, key)
+          .setDisplaySize(PIECES.rotatingCrate.width, PIECES.rotatingCrate.height);
+        this.barrierLayer.add(image);
+        this.mapDecorations.push(image);
+        const shape = { x: placement.x, y: placement.y, width: PIECES.rotatingCrate.width,
+          height: PIECES.rotatingCrate.height, angle: (placement.rotation || 0) * Math.PI / 180 };
+        this.rotatingCrates.push({ image, shape, initialAngle: shape.angle, placementIndex });
+        image.setRotation(shape.angle);
+        continue;
+      }
       if (placement.type === "barrier") {
         const width = placement.width || dimensions.width;
         const height = placement.height || dimensions.height;
@@ -815,6 +895,8 @@ export class BoltboundScene extends Phaser.Scene {
           .setPushable(false);
         barrier.body.setAllowGravity(false);
         this.barrierGroup.add(barrier);
+        // 承托位移由场景逐帧传递，关闭引擎摩擦搬运以免重复叠加。
+        barrier.setFriction(0, 0);
         barrier.body.setSize(width, height, true);
         barrier.body.setDirectControl(true);
         barrier.body.updateFromGameObject();
@@ -872,6 +954,7 @@ export class BoltboundScene extends Phaser.Scene {
         this.conveyors.push({ ...placement, placementIndex, image, graphics });
       }
       if (placement.type === "saw") {
+        this.barrierLayer.add(image);
         this.saws.push({ ...placement, placementIndex, image });
       }
       if (placement.type === "cannon") {
@@ -964,6 +1047,8 @@ export class BoltboundScene extends Phaser.Scene {
   }
 
   resetMechanismRuntime() {
+    this.releaseBarrierSupport();
+    this.ignoredBarrierSupports?.clear();
     this.portalCooldownUntil = 0;
     this.portalExitLockId = null;
     this.bumperContacts.clear();
@@ -971,8 +1056,11 @@ export class BoltboundScene extends Phaser.Scene {
     this.conveyorContact = null;
     this.effectSpeedUntil = -Infinity;
     for (const barrier of this.movingBarriers) {
-      barrier.sprite.body.reset(barrier.baseX, barrier.baseY);
+      this.resetBarrierPosition(barrier.sprite, barrier.baseX, barrier.baseY);
     }
+    for (const crate of this.rotatingCrates) { crate.shape.angle = crate.initialAngle; crate.image.setRotation(crate.initialAngle); }
+    this.ignoredRotatingCrates?.clear();
+    this.drawWindmills();
     for (const saw of this.saws) saw.image.setAngle(saw.rotation || 0);
     for (const cannon of this.cannons) cannon.graphics.clear();
     for (const laser of this.lasers) laser.graphics.clear();
@@ -1150,8 +1238,8 @@ export class BoltboundScene extends Phaser.Scene {
 
   movePreview(worldX, worldY, commit = false) {
     if (!this.preview || !this.canBuildNow()) return;
-    const x = Phaser.Math.Snap.To(Phaser.Math.Clamp(worldX, 80, WORLD.width - 80), WORLD.grid);
-    const y = Phaser.Math.Snap.To(Phaser.Math.Clamp(worldY, 160, WORLD.groundY - 40), WORLD.grid);
+    const x = Phaser.Math.Snap.To(Phaser.Math.Clamp(worldX, 0, WORLD.width), WORLD.grid);
+    const y = Phaser.Math.Snap.To(Phaser.Math.Clamp(worldY, 0, WORLD.height), WORLD.grid);
     this.preview.setPosition(x, y);
     this.previewValid = this.validatePreview(x, y);
     this.refreshPreviewFeedback(commit);
@@ -1207,6 +1295,13 @@ export class BoltboundScene extends Phaser.Scene {
       this.previewEffect.lineBetween(startX, startY, endX, endY);
       this.previewEffect.strokeRect(startX - dimensions.width / 2, startY - dimensions.height / 2, dimensions.width, dimensions.height);
       this.previewEffect.strokeRect(endX - dimensions.width / 2, endY - dimensions.height / 2, dimensions.width, dimensions.height);
+    } else if (["windmill", "rotatingCrate"].includes(type)) {
+      const radius = type === "windmill"
+        ? PIECES.windmill.orbitRadius + PIECES.windmill.platformWidth / 2
+        : Math.hypot(PIECES.rotatingCrate.width, PIECES.rotatingCrate.height) / 2;
+      this.previewEffect.strokeCircle(x, y, radius);
+      this.previewEffect.lineBetween(x - 12, y, x + 12, y);
+      this.previewEffect.lineBetween(x, y - 12, x, y + 12);
     } else if (type === "blackhole") {
       this.previewEffect.fillStyle(color, 0.07);
       this.previewEffect.fillCircle(x, y, PIECES.blackhole.effectRadius);
@@ -1601,19 +1696,267 @@ export class BoltboundScene extends Phaser.Scene {
     return time;
   }
 
+  resetBarrierPosition(sprite, x, y) {
+    const body = sprite.body;
+    body.reset(x, y);
+    // 旋转图片的左上角并非轴对齐碰撞体的左上角，重置后立即校准。
+    body.updateFromGameObject();
+    body.prev.copy(body.position);
+    body.prevFrame.copy(body.position);
+    body.autoFrame.copy(body.position);
+  }
+
+  attachBarrierSupport(barrier) {
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    if (!local?.body?.enable || !this.isLocalControllable()) return;
+    this.releaseRotatingSupport();
+    this.barrierSupport = barrier;
+    local.body.setAllowGravity(false);
+    local.setVelocityY(0);
+    this.markBarrierGrounded();
+  }
+
+  releaseBarrierSupport(ignoreUntilClear = false) {
+    this.releaseRotatingSupport(ignoreUntilClear);
+    const barrier = this.barrierSupport;
+    if (!barrier) return;
+    if (ignoreUntilClear) this.ignoredBarrierSupports.add(barrier);
+    this.barrierSupport = null;
+    const body = this.playerSprites.get(this.myPlayerId)?.sprite.body;
+    if (body) {
+      body.setAllowGravity(true);
+      body.blocked.down = false;
+      body.touching.down = false;
+    }
+  }
+
+  markBarrierGrounded() {
+    if (!this.barrierSupport) return;
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    const surface = this.barrierSupport?.body;
+    if (!local?.body?.enable || !surface || !this.isLocalControllable()) {
+      this.releaseBarrierSupport();
+      return;
+    }
+    const body = local.body;
+    if (body.velocity.y !== 0 || body.right <= surface.left || body.left >= surface.right) {
+      this.releaseBarrierSupport();
+      return;
+    }
+    body.blocked.down = true;
+    body.blocked.none = false;
+    body.touching.down = true;
+    body.touching.none = false;
+  }
+
+  moveBarrierRider(dx, dy) {
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    if (!local?.body) return false;
+    const body = local.body;
+    const solids = [this.platformGroup, this.springGroup, this.conveyorGroup, this.iceGroup,
+      this.barrierGroup].flatMap((group) => group.getChildren())
+      .filter((sprite) => sprite !== this.barrierSupport && sprite.body?.enable)
+      .map((sprite) => sprite.body);
+    // 逐轴扫过本次位移，停在固定实体表面；移动平台本身仍可穿过零件。
+    const requestedX = dx;
+    const requestedY = dy;
+    for (const solid of solids) {
+      if (body.bottom <= solid.top + 0.001 || body.top >= solid.bottom - 0.001) continue;
+      if (dx > 0 && body.right <= solid.left + 0.001) dx = Math.min(dx, solid.left - body.right);
+      if (dx < 0 && body.left >= solid.right - 0.001) dx = Math.max(dx, solid.right - body.left);
+    }
+    local.x += dx;
+    body.updateFromGameObject();
+    for (const solid of solids) {
+      if (body.right <= solid.left + 0.001 || body.left >= solid.right - 0.001) continue;
+      if (dy > 0 && body.bottom <= solid.top + 0.001) dy = Math.min(dy, solid.top - body.bottom);
+      if (dy < 0 && body.top >= solid.bottom - 0.001) dy = Math.max(dy, solid.bottom - body.top);
+    }
+    local.y += dy;
+    body.updateFromGameObject();
+    if (Math.abs(dy - requestedY) > 0.001) {
+      // 纵向受阻时解除承托，待平台穿过后恢复碰撞，避免把人物挤进墙顶。
+      // 横向受阻只限制水平搬运，脚底仍保持承托，平台可从人物脚下滑过。
+      this.releaseBarrierSupport(true);
+    }
+    return Math.abs(dx - requestedX) < 0.001 && Math.abs(dy - requestedY) < 0.001;
+  }
+
   updateMovingBarriers(time) {
-    const racing = this.roomState?.phase === "race";
+    if (!this.roomState) return;
+    const racing = this.roomState.phase === "race";
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    if (local?.body?.enable) local.body.updateFromGameObject();
+    for (const barrier of this.ignoredBarrierSupports) {
+      const body = local?.body;
+      const surface = barrier.body;
+      if (!surface || !body || body.right < surface.left || body.left > surface.right ||
+          body.bottom < surface.top - 0.1 || body.top > surface.bottom + 0.1) {
+        this.ignoredBarrierSupports.delete(barrier);
+      }
+    }
+    this.markBarrierGrounded();
+    if (racing && local?.body?.enable && !this.barrierSupport && local.body.velocity.y >= 0) {
+      const support = this.movingBarriers.find(({ sprite }) =>
+        !this.ignoredBarrierSupports.has(sprite) &&
+        local.body.right > sprite.body.left && local.body.left < sprite.body.right &&
+        Math.abs(local.body.bottom - sprite.body.top) < 0.1);
+      if (support) this.attachBarrierSupport(support.sprite);
+    }
     const elapsed = racing ? this.mechanismElapsed(time) : 0;
     for (const barrier of this.movingBarriers) {
-      const period = PIECES.barrier.periodMs;
-      const omega = (Math.PI * 2) / period;
-      const phase = elapsed * omega;
-      const offset = Math.sin(phase) * barrier.travel;
-      const x = barrier.baseX + barrier.axis.x * offset;
-      const y = barrier.baseY + barrier.axis.y * offset;
-      barrier.sprite.setPosition(x, y);
-      barrier.sprite.body.updateFromGameObject();
+      const offset = Math.sin(elapsed * Math.PI * 2 / PIECES.barrier.periodMs) * (barrier.travel || 0);
+      const phase = barrier.orbit ? barrier.orbit.phase + elapsed * Math.PI * 2 / PIECES.windmill.spinPeriodMs : 0;
+      const x = barrier.orbit ? barrier.orbit.x + Math.cos(phase) * PIECES.windmill.orbitRadius : barrier.baseX + barrier.axis.x * offset;
+      const y = barrier.orbit ? barrier.orbit.y + Math.sin(phase) * PIECES.windmill.orbitRadius : barrier.baseY + barrier.axis.y * offset;
+      const dx = x - barrier.sprite.x;
+      const dy = y - barrier.sprite.y;
+      if (racing) {
+        barrier.sprite.setPosition(x, y);
+        if (this.barrierSupport === barrier.sprite) this.moveBarrierRider(dx, dy);
+      } else if (barrier.sprite.x !== x || barrier.sprite.y !== y) {
+        this.resetBarrierPosition(barrier.sprite, x, y);
+      }
     }
+    this.updateRotatingCrates(elapsed);
+    this.drawWindmills();
+  }
+
+  releaseRotatingSupport(ignoreUntilClear = false) {
+    const support = this.rotatingSupport;
+    if (!support) return;
+    if (ignoreUntilClear) this.ignoredRotatingCrates.add(support.crate);
+    this.rotatingSupport = null;
+    const body = this.playerSprites.get(this.myPlayerId)?.sprite.body;
+    if (body) {
+      body.setAllowGravity(true);
+      body.blocked.down = false;
+      body.touching.down = false;
+    }
+  }
+
+  attachRotatingSupport(crate) {
+    this.releaseBarrierSupport();
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    if (!local?.body?.enable) return;
+    this.rotatingSupport = { crate, anchor: null };
+    local.body.setAllowGravity(false);
+    local.setVelocityY(0);
+  }
+
+  updateRotatingCrates(elapsed) {
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    if (this.rotatingSupport && (!local?.body?.enable || local.body.velocity.y !== 0 || !this.isLocalControllable())) {
+      this.releaseRotatingSupport();
+    }
+    for (const crate of this.rotatingCrates) {
+      const previousAngle = crate.shape.angle;
+      crate.shape.angle = crate.initialAngle + steppedRotationAngle(elapsed, PIECES.rotatingCrate.spinPeriodMs, PIECES.rotatingCrate.quarterPauseMs);
+      crate.image.setRotation(crate.shape.angle);
+      const support = this.rotatingSupport;
+      if (support?.crate !== crate || !support.anchor) continue;
+      // 切回页面或时钟校准造成角度大幅跳变时解除承托，避免瞬间搬运人物。
+      if (Math.abs(crate.shape.angle - previousAngle) > Math.PI / 4) {
+        this.releaseRotatingSupport();
+        continue;
+      }
+      const before = rotatePoint(support.anchor.x, support.anchor.y, previousAngle);
+      const after = rotatePoint(support.anchor.x, support.anchor.y, crate.shape.angle);
+      this.moveBarrierRider(after.x - before.x, after.y - before.y);
+    }
+  }
+
+  resolveRotatingCrates() {
+    if (!this.rotatingCrates.length) return;
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    if (!local?.body?.enable || !this.isLocalControllable()) return;
+    const body = local.body;
+    body.updateFromGameObject();
+    for (const crate of this.rotatingCrates) {
+      const shape = crate.shape;
+      const debug = this.physics.world.drawDebug && this.physics.world.debugGraphic;
+      if (debug) debug.lineStyle(2, 0x00ff00, 1).strokePoints(rectCorners(shape), true);
+      for (let iteration = 0; iteration < 4; iteration += 1) {
+        const contact = rotatingRectContact({ x: body.center.x, y: body.center.y,
+          width: body.width, height: body.height }, shape);
+        if (this.ignoredRotatingCrates.has(crate)) {
+          // 人物被固定结构挡住后，等箱体完全穿过再恢复接触，避免连续挤压。
+          if (!contact) this.ignoredRotatingCrates.delete(crate);
+          break;
+        }
+        if (!contact) break;
+        const free = this.moveBarrierRider(contact.nx * (contact.depth + 1e-6), contact.ny * (contact.depth + 1e-6));
+        if (!free) { this.ignoredRotatingCrates.add(crate); this.releaseRotatingSupport(); break; }
+        if (contact.ny < -0.45 && body.velocity.y >= 0) {
+          if (this.rotatingSupport?.crate !== crate) this.attachRotatingSupport(crate);
+        } else if (contact.ny > 0.45) {
+          if (body.velocity.y < 0) local.setVelocityY(0);
+          body.blocked.up = body.touching.up = true;
+        } else if (Math.abs(contact.nx) > 0.45) {
+          if (body.velocity.x * contact.nx < 0) local.setVelocityX(0);
+          body.blocked[contact.nx > 0 ? "left" : "right"] = true;
+          body.touching[contact.nx > 0 ? "left" : "right"] = true;
+        }
+      }
+    }
+  }
+
+  finishRotatingSupport() {
+    const support = this.rotatingSupport;
+    if (!support) return;
+    const local = this.playerSprites.get(this.myPlayerId)?.sprite;
+    if (!local?.body?.enable || local.body.velocity.y !== 0 || !this.isLocalControllable()) {
+      this.releaseRotatingSupport();
+      return;
+    }
+    const body = local.body;
+    body.updateFromGameObject();
+    const shape = support.crate.shape;
+    const surface = rotatingSurface(shape, body.left, body.right);
+    if (!surface || Math.abs(surface.y - body.bottom) > 16) {
+      this.releaseRotatingSupport();
+      return;
+    }
+    this.moveBarrierRider(0, surface.y - body.bottom);
+    if (this.rotatingSupport !== support) return;
+    // 保存箱体局部坐标中的接触点，下一帧按它的实际旋转位移带动人物。
+    support.anchor = rotatePoint(surface.x - shape.x, surface.y - shape.y, -shape.angle);
+    body.blocked.down = body.touching.down = true;
+    body.blocked.none = body.touching.none = false;
+  }
+
+  drawWindmills() {
+    for (const mill of this.windmills) {
+      const graphics = mill.graphics;
+      graphics.clear();
+      for (const sprite of mill.platforms) {
+        graphics.lineStyle(14, 0x203637, 1).lineBetween(mill.x, mill.y, sprite.x, sprite.y);
+        graphics.lineStyle(7, 0x69aaa4, 1).lineBetween(mill.x, mill.y, sprite.x, sprite.y);
+      }
+      graphics.fillStyle(0xe96d51, 1).fillCircle(mill.x, mill.y, 22);
+      graphics.lineStyle(4, 0x203637, 1).strokeCircle(mill.x, mill.y, 22);
+      graphics.fillStyle(0xf2c84e, 1).fillCircle(mill.x, mill.y, 10);
+      graphics.fillStyle(0x203637, 1).fillCircle(mill.x, mill.y, 4);
+    }
+  }
+
+  finishMovingBarrierStep() {
+    for (const barrier of this.movingBarriers) {
+      const body = barrier.sprite.body;
+      body.autoFrame.copy(body.position);
+    }
+    this.markBarrierGrounded();
+  }
+
+  finishBarrierSupportFrame() {
+    this.resolveRotatingCrates();
+    this.finishRotatingSupport();
+    this.markBarrierGrounded();
+    if (!this.barrierSupport) return;
+    const local = this.playerSprites.get(this.myPlayerId).sprite;
+    // 行走动画会改变碰撞体高度；以脚底为锚点，保持人物贴住承托面。
+    local.body.updateFromGameObject();
+    this.moveBarrierRider(0, this.barrierSupport.body.top - local.body.bottom);
   }
 
   updateFanVisuals(time) {
@@ -2076,6 +2419,7 @@ export class BoltboundScene extends Phaser.Scene {
     if (!local?.body?.enable) return;
     if (this.bridge.onLocalDeath?.(reason) === false) return;
     this.deathSent = true;
+    this.releaseBarrierSupport();
     this.bridge.onAudioEvent?.("death");
     local.setVelocity(0, 0).setAlpha(0.35).setAngle(12);
     local.setDragX(PLAYER_DRAG_X);
@@ -2094,10 +2438,10 @@ export class BoltboundScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!this.roomState) return;
+    this.goalProtection?.setVisible(this.roomState.phase === "build");
     const local = this.playerSprites.get(this.myPlayerId)?.sprite;
     this.syncItemEffectVisuals();
     this.updateFogOverlay(local);
-    this.updateMovingBarriers(time);
     this.updateFanVisuals(time);
     this.updateBlackHoleVisuals(time);
     this.updatePortalVisuals(time);

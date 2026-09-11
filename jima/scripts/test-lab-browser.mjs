@@ -5,6 +5,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { CATALOG } from "../src/lab/catalog.js";
+import { checkRotatingMotion } from "./check-rotating-motion.mjs";
+import { checkBarrierMotion, assertBarrierMotion, checkBarrierInteractions } from "./check-barrier-motion.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const artifacts = new URL("../artifacts/trap-lab-browser/", import.meta.url);
@@ -114,6 +116,58 @@ try {
   await page.waitForFunction(() => document.getElementById("scene-loading").hidden);
   await count(2);
 
+  // 验证精确输入与鼠标预览一致，边缘位置能保存、刷新和导入。
+  await page.locator("#clear-map").click();
+  for (const [index, [x, y]] of [[0, 0], [1600, 0], [0, 900], [1600, 900], [1400, 320]].entries()) {
+    await exact("crate", x, y);
+    await count(index + 1);
+    assert.deepEqual(await sceneValue("({ x: scene.preview.x, y: scene.preview.y })"), { x, y });
+  }
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById("scene-loading").hidden);
+  await count(5);
+  await select("crate");
+  await worldClick(800, 898);
+  await count(6);
+  assert.equal(await sceneValue("scene.roomState.placements.at(-1).y"), 900);
+  await page.locator("#lab-canvas canvas").screenshot({ path: fileURLToPath(new URL("full-build-area.png", artifacts)) });
+
+  // 旗子保护、新运动零件和旧方案恢复通过实际页面操作验证。
+  await page.locator("#clear-map").click();
+  assert.deepEqual(await sceneValue("({ left: scene.goal.body.left, right: scene.goal.body.right, top: scene.goal.body.top, bottom: scene.goal.body.bottom })"),
+    { left: 1465, right: 1555, top: 530, bottom: 660 });
+  await exact("crate", 1420, 580); await count(1);
+  await exact("crate", 1600, 580); await count(2);
+  await page.locator("#clear-map").click();
+  await exact("beam", 1500, 580); await count(0);
+  assert.match(await page.locator("#placement-feedback").textContent(), /旗子/);
+  await exact("barrier", 1280, 540); await count(0);
+  assert.match(await page.locator("#placement-feedback").textContent(), /运动轨迹/);
+  await exact("windmill", 400, 560); await count(1);
+  await exact("crate", 500, 480); await count(2);
+  await exact("rotatingCrate", 1000, 560); await count(3);
+  await setSpawn(520, 510);
+  await page.locator("#mode-test").click();
+  await page.waitForFunction(() => {
+    const scene = window.__LAB_GAME__.scene.getScene("Boltbound");
+    return scene.windmills.length === 1 && scene.movingBarriers.length === 4 &&
+      scene.rotatingCrates.length === 1 && Math.abs(scene.rotatingCrates[0].image.angle) > 15;
+  });
+  await page.locator("#lab-canvas canvas").screenshot({ path: fileURLToPath(new URL("rotating-platforms.png", artifacts)) });
+  await page.locator("#mode-build").click();
+  assert.equal(await sceneValue("scene.rotatingCrates[0].image.angle"), 0);
+  await page.evaluate(() => {
+    localStorage.setItem("boltbound.trap-lab.plan.v1", JSON.stringify({ format: "boltbound-trap-lab", version: 1,
+      spawn: { x: 80, y: 142 }, placements: [{ type: "beam", x: 1500, y: 580, rotation: 0 }] }));
+  });
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById("scene-loading").hidden);
+  await count(1);
+  await page.locator("#mode-test").click();
+  assert.equal(await sceneValue("scene.roomState.phase"), "build");
+  assert.match(await page.locator("#lab-toast").textContent(), /旗子/);
+  await page.locator("#lab-canvas canvas").screenshot({ path: fileURLToPath(new URL("goal-protection.png", artifacts)) });
+
   // 通过实际鼠标预览复现方箱贴在横梁上的放置过程，
   // 再让人物站上三层结构，验证游戏原有碰撞体的承托效果。
   await page.locator("#clear-map").click();
@@ -169,7 +223,7 @@ try {
     return (local.blocked.down || local.touching.down) && Math.abs(local.bottom - barrier.top) < 1;
   });
   assert.ok(await sceneValue("scene.movingBarriers.every(({ sprite }) => sprite.displayList === scene.barrierLayer)"));
-  assert.ok(await sceneValue("scene.barrierLayer.depth < scene.mapDecorations.find((image) => image.texture?.key === 'piece-crate').depth"));
+  assert.ok(await sceneValue("scene.barrierLayer.depth > scene.mapDecorations.find((image) => image.texture?.key === 'piece-crate').depth"));
   await page.waitForFunction(() => {
     const scene = window.__LAB_GAME__.scene.getScene("Boltbound");
     return scene.movingBarriers[0].sprite.body.center.x > 590;
@@ -274,12 +328,21 @@ try {
   await page.mouse.up();
   assert.equal(await sceneValue("scene.touch.right"), false);
   await page.screenshot({ path: fileURLToPath(new URL("mobile.png", artifacts)), fullPage: true });
+  const barrierMotion = await checkBarrierMotion(page);
+  await writeFile(new URL("barrier-motion.json", artifacts), JSON.stringify(barrierMotion, null, 2));
+  console.log("路障逐帧验证：", JSON.stringify(barrierMotion));
+  assertBarrierMotion(barrierMotion);
+  const barrierInteractions = await checkBarrierInteractions(page);
+  await writeFile(new URL("barrier-interactions.json", artifacts), JSON.stringify(barrierInteractions, null, 2));
+  const rotatingMotion = await checkRotatingMotion(page);
+  await writeFile(new URL("rotating-motion.json", artifacts), JSON.stringify(rotatingMotion, null, 2));
   assert.deepEqual(errors, []);
   await writeFile(new URL("result.json", artifacts), JSON.stringify({ ok: true, catalog: CATALOG.length, errors,
     checked: ["source catalog", "placement validation", "rotation", "delete", "undo/redo", "JSON roundtrip", "reload persistence",
       "贴边叠放预览与鼠标放置", "叠放实体穿入拒绝", "叠放结构刷新恢复与碰撞承托",
       "路障独立显示层", "路障横纵穿行", "路障承托人物与返回搭建复位",
-      "paired portal deletion", "real jumping", "reverse input", "shield cleansing", "fog", "bomb recovery", "spike death", "respawn", "responsive layout"] }, null, 2));
+      "路障在多种帧率下的图片与碰撞体同步", "低帧率路障承托与主动跳离",
+      "旗子及运动轨迹保护", "旧遮挡方案保留供编辑", "风车与旋转方箱搭建、试用、碰撞及重置", "运动件位于静止结构上方", "全画面边缘搭建与刷新恢复", "四方向无滑动承托、碰墙碰顶及承托解除", "paired portal deletion", "real jumping", "reverse input", "shield cleansing", "fog", "bomb recovery", "spike death", "respawn", "responsive layout"] }, null, 2));
   console.log("Trap lab browser checks passed; screenshots and report: artifacts/trap-lab-browser/");
 } catch (error) {
   await page?.screenshot({ path: fileURLToPath(new URL("failure.png", artifacts)), fullPage: true }).catch(() => {});

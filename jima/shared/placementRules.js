@@ -1,39 +1,13 @@
 import {
   BASE_PLATFORMS,
-  GAME,
-  GOAL,
+  GOAL_BUILD_CLEARANCE,
   PIECES,
   PLAYER_COLLISION_BOUNDS,
-  SPAWN,
   WORLD,
 } from "./gameConfig.js";
 
-const PLAYER_SPAWN_STEP_X = 44;
-const PLAYER_SPAWN_STEP_Y = 8;
-const SPAWN_PROTECTION_MARGIN = 16;
 // 实验台的搭建类零件允许边缘相接，不额外要求间隔。
-const CONSTRUCTION_PIECE_TYPES = new Set(["beam", "crate", "barrier", "ice"]);
-const lastSpawnX = SPAWN.x + (GAME.maxPlayers - 1) * PLAYER_SPAWN_STEP_X;
-const highestSpawnY = SPAWN.y - (GAME.maxPlayers - 1) * PLAYER_SPAWN_STEP_Y;
-
-const PROTECTED_ZONES = Object.freeze([
-  Object.freeze({
-    left: Math.max(0, SPAWN.x - PLAYER_COLLISION_BOUNDS.left - SPAWN_PROTECTION_MARGIN),
-    right: Math.min(
-      WORLD.width,
-      lastSpawnX + PLAYER_COLLISION_BOUNDS.right + SPAWN_PROTECTION_MARGIN,
-    ),
-    top: Math.max(
-      0,
-      highestSpawnY - PLAYER_COLLISION_BOUNDS.top - SPAWN_PROTECTION_MARGIN,
-    ),
-    bottom: Math.min(
-      WORLD.groundY,
-      SPAWN.y + PLAYER_COLLISION_BOUNDS.bottom + SPAWN_PROTECTION_MARGIN,
-    ),
-  }),
-  Object.freeze({ left: GOAL.x - 230, right: WORLD.width, top: 0, bottom: WORLD.groundY }),
-]);
+const CONSTRUCTION_PIECE_TYPES = new Set(["beam", "crate", "barrier", "ice", "windmill", "rotatingCrate"]);
 
 const BASE_PLATFORM_RECTS = Object.freeze(
   BASE_PLATFORMS.map((platform) => Object.freeze({ ...platform })),
@@ -104,7 +78,7 @@ export function directionalRangeToBlocker(
   let edgeDistance;
   if (direction.x > 0) edgeDistance = WORLD.width - x;
   else if (direction.x < 0) edgeDistance = x;
-  else if (direction.y > 0) edgeDistance = WORLD.groundY - y;
+  else if (direction.y > 0) edgeDistance = WORLD.height - y;
   else edgeDistance = y;
   let range = Math.max(startDistance, Math.min(configuredRange, edgeDistance));
   for (const candidate of blockers) {
@@ -208,7 +182,7 @@ export function portalExitPosition(portal, mode = "paired") {
   const exitY = clamp(
     exact.y,
     PLAYER_COLLISION_BOUNDS.top,
-    WORLD.groundY - PLAYER_COLLISION_BOUNDS.bottom,
+    WORLD.height - PLAYER_COLLISION_BOUNDS.bottom,
   );
   const clamped = exitX !== exact.x || exitY !== exact.y;
   return {
@@ -325,11 +299,20 @@ export function safetyRectsForPlacement(placement) {
 }
 
 function blockingRectsForPlacement(placement, portalMode = null) {
+  if (placement.type === "windmill") {
+    const piece = PIECES.windmill;
+    return [0, 1, 2, 3].map((index) => {
+      const angle = (Number(placement.rotation || 0) + index * 90) * Math.PI / 180;
+      return rect(Number(placement.x) + Math.cos(angle) * piece.orbitRadius,
+        Number(placement.y) + Math.sin(angle) * piece.orbitRadius, piece.platformWidth, piece.platformHeight);
+    });
+  }
+
   if (placement.type === "portal") {
     return safetyRectsForPlacementInTopology(placement, portalMode);
   }
   // 搭建时只检查路障初始实体的占用范围，独立运动层允许其穿过其他零件。
-  // 完整运动轨迹仍须避开人物和保护区，并保持在地图边界内。
+  // 运动轨迹和作用范围不占用搭建位置，运行时仍与人物交互。
   const body = bodyRect(placement);
   return body ? [body] : [];
 }
@@ -346,44 +329,59 @@ function rectInsideWorld(candidate) {
     candidate.x - candidate.width / 2 >= 0 &&
     candidate.x + candidate.width / 2 <= WORLD.width &&
     candidate.y - candidate.height / 2 >= 0 &&
-    candidate.y + candidate.height / 2 <= WORLD.groundY
+    candidate.y + candidate.height / 2 <= WORLD.height
   );
 }
 
-function rectIntersectsZone(candidate, zone) {
-  return (
-    candidate.x + candidate.width / 2 > zone.left &&
-    candidate.x - candidate.width / 2 < zone.right &&
-    candidate.y + candidate.height / 2 > zone.top &&
-    candidate.y - candidate.height / 2 < zone.bottom
-  );
+// 以零件中心判断画面边界，边缘允许零件部分伸出；碰撞另行检查。
+export function placementCenterInsideWorld({ x, y }) {
+  return Number.isFinite(x) && Number.isFinite(y) &&
+    x >= 0 && x <= WORLD.width && y >= 0 && y <= WORLD.height;
 }
 
-export function validatePlacementSafety(placement, existingPlacements = [], buildBlockers = []) {
+// 只保护旗子碰撞体，运动件按实际行程检查，避免多算不会到达的位置。
+export function placementBlocksGoal(placement) {
+  let candidates = blockingRectsForPlacement(placement);
+  const body = bodyRect(placement);
+  if (!body) return false;
+  if (placement.type === "barrier") {
+    const horizontal = (normalizedRotation(placement.rotation) ?? 0) % 180 === 0;
+    const travel = Math.max(0, Math.min(PIECES.barrier.travelRange,
+      horizontal ? body.x - body.width / 2 : body.y - body.height / 2,
+      horizontal ? WORLD.width - body.x - body.width / 2 : WORLD.height - body.y - body.height / 2));
+    candidates = [rect(body.x, body.y, body.width + (horizontal ? travel * 2 : 0),
+      body.height + (horizontal ? 0 : travel * 2))];
+  } else if (placement.type === "windmill") {
+    // 四个平台保持水平：用平台半尺寸扩展旗子，再检查平台中心的圆形轨迹。
+    const left = GOAL_BUILD_CLEARANCE.left - PIECES.windmill.platformWidth / 2 - body.x;
+    const right = GOAL_BUILD_CLEARANCE.right + PIECES.windmill.platformWidth / 2 - body.x;
+    const top = GOAL_BUILD_CLEARANCE.top - PIECES.windmill.platformHeight / 2 - body.y;
+    const bottom = GOAL_BUILD_CLEARANCE.bottom + PIECES.windmill.platformHeight / 2 - body.y;
+    const nearest = Math.hypot(clamp(0, left, right), clamp(0, top, bottom));
+    const farthest = Math.hypot(Math.max(Math.abs(left), Math.abs(right)), Math.max(Math.abs(top), Math.abs(bottom)));
+    return nearest < PIECES.windmill.orbitRadius && farthest > PIECES.windmill.orbitRadius;
+  } else if (placement.type === "rotatingCrate") {
+    const radius = Math.hypot(PIECES.rotatingCrate.width, PIECES.rotatingCrate.height) / 2;
+    const nearestX = clamp(body.x, GOAL_BUILD_CLEARANCE.left, GOAL_BUILD_CLEARANCE.right);
+    const nearestY = clamp(body.y, GOAL_BUILD_CLEARANCE.top, GOAL_BUILD_CLEARANCE.bottom);
+    return Math.hypot(body.x - nearestX, body.y - nearestY) < radius;
+  }
+  return candidates.some((candidate) =>
+    candidate.x + candidate.width / 2 > GOAL_BUILD_CLEARANCE.left &&
+    candidate.x - candidate.width / 2 < GOAL_BUILD_CLEARANCE.right &&
+    candidate.y + candidate.height / 2 > GOAL_BUILD_CLEARANCE.top &&
+    candidate.y - candidate.height / 2 < GOAL_BUILD_CLEARANCE.bottom);
+}
+
+export function validatePlacementSafety(placement, existingPlacements = [], buildBlockers = [], { allowGoalOverlap = false } = {}) {
   const prospectivePlacements = [...existingPlacements, placement];
   const portalModes = portalModesForPlacements(prospectivePlacements);
   const candidatePortalMode = portalModes.get(placement) || null;
-  if (placement.type === "portal") {
-    const hasClampedExit = prospectivePlacements
-      .filter((candidate) => candidate?.type === "portal")
-      .some((portal) => {
-        const mode = portalModes.get(portal);
-        if (!["solo", "paired"].includes(mode)) return false;
-        const exit = portalExitPosition(portal, mode);
-        return !exit || exit.clamped;
-      });
-    if (hasClampedExit) return "out_of_bounds";
-  }
-  const safetyRects = safetyRectsForPlacementInTopology(placement, candidatePortalMode);
-  if (!safetyRects.length || safetyRects.some((candidate) => !rectInsideWorld(candidate))) {
-    return "out_of_bounds";
-  }
-  const protectionRects = placement.type === "blackhole"
-    ? blockingRectsForPlacement(placement, candidatePortalMode)
-    : safetyRects;
-  if (protectionRects.some((candidate) => PROTECTED_ZONES.some((zone) => rectIntersectsZone(candidate, zone)))) {
-    return "reserved_zone";
-  }
+  const body = bodyRect(placement);
+  if (!body || !placementCenterInsideWorld(body)) return "out_of_bounds";
+  if (!allowGoalOverlap && placementBlocksGoal(placement)) return "goal_blocked";
+  // 其余区域只检查当前人物、零件实体及传送出口。
+  const protectionRects = blockingRectsForPlacement(placement, candidatePortalMode);
   const blocksVisiblePlayer = buildBlockers.some((blocker) => {
     if (blocker?.blocksPlacement === false) return false;
     const blockerRect = rect(
@@ -409,7 +407,6 @@ export function validatePlacementSafety(placement, existingPlacements = [], buil
       if (!["solo", "paired"].includes(mode)) continue;
       const exitRect = portalExitRect(portal, mode);
       if (!exitRect || !rectInsideWorld(exitRect)) return "out_of_bounds";
-      if (PROTECTED_ZONES.some((zone) => rectIntersectsZone(exitRect, zone))) return "reserved_zone";
       if (BASE_PLATFORM_RECTS.some((platform) => rectsOverlap(exitRect, platform, 0))) {
         return "piece_overlap";
       }
@@ -445,14 +442,13 @@ export function validatePlacementSafety(placement, existingPlacements = [], buil
   if (blocksVisiblePlayer) return "reserved_zone";
 
   const blockingRects = blockingRectsForPlacement(placement, candidatePortalMode);
-  const platformSensitiveBody = [
-    "barrier", "fan", "portal", "conveyor", "ice", "saw", "cannon", "laser", "bumper", "blackhole",
+  const platformSensitiveBodies = [
+    "barrier", "fan", "portal", "conveyor", "ice", "saw", "cannon", "laser", "bumper", "blackhole", "windmill", "rotatingCrate",
   ].includes(placement.type)
-    ? bodyRect(placement)
-    : null;
+    ? blockingRects
+    : [];
   if (
-    platformSensitiveBody &&
-    BASE_PLATFORM_RECTS.some((platform) => rectsOverlap(platformSensitiveBody, platform, 0))
+    platformSensitiveBodies.some((candidate) => BASE_PLATFORM_RECTS.some((platform) => rectsOverlap(candidate, platform, 0)))
   ) {
     return "piece_overlap";
   }
