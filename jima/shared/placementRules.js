@@ -11,6 +11,8 @@ import {
 const PLAYER_SPAWN_STEP_X = 44;
 const PLAYER_SPAWN_STEP_Y = 8;
 const SPAWN_PROTECTION_MARGIN = 16;
+// The lab's construction category can share edges without an artificial gap.
+const CONSTRUCTION_PIECE_TYPES = new Set(["beam", "crate", "barrier", "ice"]);
 const lastSpawnX = SPAWN.x + (GAME.maxPlayers - 1) * PLAYER_SPAWN_STEP_X;
 const highestSpawnY = SPAWN.y - (GAME.maxPlayers - 1) * PLAYER_SPAWN_STEP_Y;
 
@@ -323,9 +325,12 @@ export function safetyRectsForPlacement(placement) {
 }
 
 function blockingRectsForPlacement(placement, portalMode = null) {
-  if (["barrier", "portal"].includes(placement.type)) {
+  if (placement.type === "portal") {
     return safetyRectsForPlacementInTopology(placement, portalMode);
   }
+  // A barrier occupies only its initial body during construction. Its separate
+  // motion layer may cross other pieces; the full sweep still protects players
+  // and reserved zones and must remain inside the world.
   const body = bodyRect(placement);
   return body ? [body] : [];
 }
@@ -454,8 +459,13 @@ export function validatePlacementSafety(placement, existingPlacements = [], buil
   }
   const hasConflict = existingPlacements.some((other) => {
     const otherBlockingRects = blockingRectsForPlacement(other, portalModes.get(other) || null);
+    // Remove extra clearance between construction pieces, never initial body
+    // overlap or the space reserved for a portal exit.
+    const margin = CONSTRUCTION_PIECE_TYPES.has(placement.type) && CONSTRUCTION_PIECE_TYPES.has(other.type)
+      ? 0
+      : 8;
     return blockingRects.some((candidate) =>
-      otherBlockingRects.some((otherRect) => rectsOverlap(candidate, otherRect)),
+      otherBlockingRects.some((otherRect) => rectsOverlap(candidate, otherRect, margin)),
     );
   });
   return hasConflict ? "piece_overlap" : null;

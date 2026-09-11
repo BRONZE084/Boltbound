@@ -9,6 +9,7 @@ import {
   WORLD,
 } from "../shared/gameConfig.js";
 import {
+  dimensionsForPiece,
   directionalRangeToBlocker,
   portalExitForLink,
   portalExitPosition,
@@ -392,4 +393,66 @@ assert.equal(
   "cannon and laser corridors share the same real occlusion",
 );
 
-console.log("placement rules: lethal void, three-platform descent, local protection, and occlusion verified");
+// Construction pieces must stack and join at their rotated edges in either
+// placement order, while any real penetration must still be rejected.
+function assertPlacementPair(first, second, expected, message) {
+  assert.equal(validatePlacementSafety(second, [first]), expected, message);
+  assert.equal(validatePlacementSafety(first, [second]), expected, `${message} (reverse order)`);
+}
+
+for (const firstType of ["beam", "crate", "ice"]) {
+  for (const secondType of ["beam", "crate", "ice"]) {
+    for (const firstRotation of [0, 90, 180, 270]) {
+      for (const secondRotation of [0, 90, 180, 270]) {
+        const first = { type: firstType, x: 480, y: 600, rotation: firstRotation };
+        const second = { type: secondType, x: 480, y: 600, rotation: secondRotation };
+        const firstSize = dimensionsForPiece(firstType, firstRotation);
+        const secondSize = dimensionsForPiece(secondType, secondRotation);
+        for (const [axis, edgeOffset] of [
+          ["y", -(firstSize.height + secondSize.height) / 2],
+          ["x", (firstSize.width + secondSize.width) / 2],
+        ]) {
+          const touching = { ...second, [axis]: first[axis] + edgeOffset };
+          const label = `${firstType}@${firstRotation} / ${secondType}@${secondRotation} along ${axis}`;
+          assertPlacementPair(first, touching, null, `${label}: touching edges are valid`);
+          assertPlacementPair(first, { ...touching, [axis]: touching[axis] - Math.sign(edgeOffset) },
+            "piece_overlap", `${label}: even one pixel of penetration is invalid`);
+        }
+      }
+    }
+  }
+}
+
+const horizontalBarrier = { type: "barrier", x: 480, y: 600, rotation: 0 };
+const verticalBarrier = { type: "barrier", x: 480, y: 560, rotation: 90 };
+for (const type of ["beam", "crate", "barrier", "ice"]) {
+  assertPlacementPair(horizontalBarrier, { type, x: 480, y: 580 - PIECES[type].height / 2, rotation: 0 },
+    null, `${type} can sit flush above a horizontal barrier's travel path`);
+  assertPlacementPair(verticalBarrier, { type, x: 500 + PIECES[type].height / 2, y: 560, rotation: 90 },
+    null, `${type} can join beside a vertical barrier's travel path`);
+}
+assertPlacementPair(horizontalBarrier, { type: "crate", x: 600, y: 600, rotation: 0 },
+  null, "a barrier's independent layer can move horizontally through a crate");
+assertPlacementPair(verticalBarrier, { type: "crate", x: 480, y: 440, rotation: 0 },
+  null, "a barrier's independent layer can move vertically through a crate");
+assertPlacementPair(horizontalBarrier, { type: "crate", x: 580, y: 600, rotation: 0 },
+  "piece_overlap", "barriers still cannot start inside another piece");
+assertPlacementPair(horizontalBarrier, { type: "spikes", x: 660, y: 600, rotation: 0 },
+  null, "a barrier's travel path can also cross another category of piece");
+assert.equal(validatePlacementSafety(horizontalBarrier, [], [{ x: 650, y: 600, width: 40, height: 67 }]),
+  "reserved_zone", "a barrier's full sweep still protects a visible player");
+assert.equal(validatePlacementSafety({ type: "barrier", x: 1100, y: 600, rotation: 0 }),
+  "reserved_zone", "a barrier's full sweep cannot enter the protected finish column");
+assert.equal(validatePlacementSafety({ type: "barrier", x: 480, y: 720, rotation: 90 }),
+  "out_of_bounds", "a barrier's full sweep cannot leave the world");
+assertPlacementPair(horizontalBarrier, { type: "crate", x: 720, y: 600, rotation: 0 },
+  null, "a crate can touch the outer edge of a barrier's full travel path");
+assertPlacementPair({ type: "beam", x: 480, y: 600, rotation: 0 },
+  { type: "spikes", x: 480, y: 560, rotation: 0 },
+  "piece_overlap", "construction stacking does not change clearance for other categories");
+assert.equal(validatePlacementSafety({ type: "crate", x: 480, y: 260, rotation: 0 },
+  [{ type: "beam", x: 480, y: 320, rotation: 0 }],
+  [{ x: 480, y: 260, width: 40, height: 67 }]), "reserved_zone",
+"stacking never bypasses protection for a visible player");
+
+console.log("placement rules: lethal void, three-platform descent, local protection, occlusion, and construction stacking verified");

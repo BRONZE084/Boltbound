@@ -114,6 +114,76 @@ try {
   await page.waitForFunction(() => document.getElementById("scene-loading").hidden);
   await count(2);
 
+  // Reproduce a crate touching the top of a beam using the real pointer preview,
+  // then stand on a three-piece stack to check the original collision bodies.
+  await page.locator("#clear-map").click();
+  await exact("beam", 480, 320);
+  await select("crate");
+  const canvasBounds = await page.locator("#lab-canvas canvas").boundingBox();
+  await page.mouse.move(canvasBounds.x + 480 / 1600 * canvasBounds.width,
+    canvasBounds.y + 260 / 900 * canvasBounds.height);
+  await page.waitForFunction(() => {
+    const scene = window.__LAB_GAME__.scene.getScene("Boltbound");
+    return scene.preview?.x === 480 && scene.preview?.y === 260 && scene.previewValid;
+  });
+  assert.match(await page.locator("#placement-feedback").textContent(), /可放置/);
+  await page.mouse.down();
+  await page.mouse.up();
+  await count(2);
+  await exact("crate", 480, 280);
+  await count(2);
+  assert.match(await page.locator("#placement-feedback").textContent(), /冲突/);
+  await exact("ice", 480, 200);
+  await count(3);
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById("scene-loading").hidden);
+  await count(3);
+  await setSpawn(480, 100);
+  await page.locator("#mode-test").click();
+  await page.waitForFunction(() => {
+    const scene = window.__LAB_GAME__.scene.getScene("Boltbound");
+    const body = scene.playerSprites.get(scene.myPlayerId).sprite.body;
+    return body.blocked.down && Math.abs(body.bottom - 180) < 1;
+  });
+  await page.locator("#lab-canvas canvas").screenshot({ path: fileURLToPath(new URL("stacking.png", artifacts)) });
+  await page.locator("#mode-build").click();
+
+  // Moving barriers use a separate render layer and can run through pieces in
+  // both axes, without losing their collision support for the player.
+  await page.locator("#clear-map").click();
+  await exact("barrier", 480, 600);
+  await exact("crate", 600, 600);
+  await exact("crate", 1040, 440);
+  await select("barrier");
+  await page.locator("#rotate").click();
+  await page.locator("#place-x").fill("1040");
+  await page.locator("#place-y").fill("560");
+  await page.locator("#place-exact").click();
+  await count(4);
+  await setSpawn(480, 520);
+  await page.locator("#mode-test").click();
+  await page.waitForFunction(() => {
+    const scene = window.__LAB_GAME__.scene.getScene("Boltbound");
+    const local = scene.playerSprites.get(scene.myPlayerId).sprite.body;
+    const barrier = scene.movingBarriers[0].sprite.body;
+    return (local.blocked.down || local.touching.down) && Math.abs(local.bottom - barrier.top) < 1;
+  });
+  assert.ok(await sceneValue("scene.movingBarriers.every(({ sprite }) => sprite.displayList === scene.barrierLayer)"));
+  assert.ok(await sceneValue("scene.barrierLayer.depth < scene.mapDecorations.find((image) => image.texture?.key === 'piece-crate').depth"));
+  await page.waitForFunction(() => {
+    const scene = window.__LAB_GAME__.scene.getScene("Boltbound");
+    return scene.movingBarriers[0].sprite.body.center.x > 590;
+  });
+  await page.locator("#lab-canvas canvas").screenshot({ path: fileURLToPath(new URL("barrier-crossing.png", artifacts)) });
+  await page.waitForFunction(() => {
+    const scene = window.__LAB_GAME__.scene.getScene("Boltbound");
+    return scene.movingBarriers[1].sprite.body.center.y < 450;
+  });
+  assert.equal(await sceneValue("scene.roomState.placements.find((piece) => piece.type === 'crate').x"), 600);
+  await page.locator("#mode-build").click();
+  assert.equal(await sceneValue("scene.movingBarriers[0].sprite.body.center.x"), 480);
+  assert.equal(await sceneValue("scene.movingBarriers[1].sprite.body.center.y"), 560);
+
   await page.locator("#clear-map").click();
   await exact("portal", 480, 600);
   await exact("portal", 1000, 320);
@@ -207,6 +277,8 @@ try {
   assert.deepEqual(errors, []);
   await writeFile(new URL("result.json", artifacts), JSON.stringify({ ok: true, catalog: CATALOG.length, errors,
     checked: ["source catalog", "placement validation", "rotation", "delete", "undo/redo", "JSON roundtrip", "reload persistence",
+      "flush stacking preview and pointer placement", "stack penetration rejection", "stack reload and collision support",
+      "barrier render layer", "horizontal and vertical barrier crossing", "barrier player support and build reset",
       "paired portal deletion", "real jumping", "reverse input", "shield cleansing", "fog", "bomb recovery", "spike death", "respawn", "responsive layout"] }, null, 2));
   console.log("Trap lab browser checks passed; screenshots and report: artifacts/trap-lab-browser/");
 } catch (error) {

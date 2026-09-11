@@ -245,6 +245,9 @@ export class BoltboundScene extends Phaser.Scene {
     this.platformGroup = this.physics.add.staticGroup();
     this.springGroup = this.physics.add.staticGroup();
     this.hazardGroup = this.physics.add.staticGroup();
+    // Barriers render behind placed pieces and collide with players only.
+    // Their independent physics group has no collider with map/other pieces.
+    this.barrierLayer = this.add.layer().setDepth(4.5);
     this.barrierGroup = this.physics.add.group({ allowGravity: false, immovable: true });
     this.conveyorGroup = this.physics.add.staticGroup();
     this.iceGroup = this.physics.add.staticGroup();
@@ -803,7 +806,8 @@ export class BoltboundScene extends Phaser.Scene {
       if (placement.type === "barrier") {
         const width = placement.width || dimensions.width;
         const height = placement.height || dimensions.height;
-        const barrier = this.physics.add.image(placement.x, placement.y, key).setDepth(5);
+        const barrier = this.physics.add.image(placement.x, placement.y, key);
+        this.barrierLayer.add(barrier);
         barrier
           .setDisplaySize(PIECES.barrier.width, PIECES.barrier.height)
           .setAngle(placement.rotation || 0)

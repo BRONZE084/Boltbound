@@ -42,6 +42,29 @@ test("delete, custom spawn, clear, undo and redo preserve a recoverable blueprin
   assert.equal(lab.history("redo"), false);
 });
 
+test("a flush beam/crate/ice stack survives undo, JSON import and test reset", () => {
+  const lab = new LabSession();
+  for (const placement of [piece(), piece("crate", 480, 260), piece("ice", 480, 200)]) {
+    assert.ok(lab.place(placement).placement, placement.type);
+  }
+  const plan = lab.exportPlan();
+  assert.equal(lab.place(piece("crate", 480, 280)).error, "piece_overlap");
+  lab.history("undo");
+  assert.equal(lab.blueprint.length, 2);
+  lab.history("redo");
+  assert.deepEqual(lab.exportPlan(), plan);
+  const imported = new LabSession();
+  imported.importPlan(JSON.parse(JSON.stringify(plan)));
+  assert.deepEqual(imported.exportPlan(), plan);
+  imported.enterMode("test", 1000);
+  assert.equal(imported.state.placements.length, 3);
+  imported.useItem("bomb", { position: { x: 480, y: 260 }, now: 1100 });
+  assert.equal(imported.state.placements.length, 0);
+  imported.enterMode("build");
+  assert.equal(imported.state.placements.length, 3);
+  assert.deepEqual(imported.exportPlan(), plan);
+});
+
 test("bomb damage is temporary, obeys real portal pairing, and cannot destroy the blueprint", () => {
   const lab = new LabSession();
   assert.ok(lab.place(piece("portal", 480, 320)).placement);
@@ -55,6 +78,20 @@ test("bomb damage is temporary, obeys real portal pairing, and cannot destroy th
   assert.deepEqual(lab.exportPlan(), blueprint);
   lab.enterMode("build");
   assert.equal(lab.state.placements.length, 2);
+});
+
+test("barrier paths may cross pieces in either build order and survive JSON import", () => {
+  for (const placements of [
+    [piece("barrier", 480, 600), piece("crate", 600, 600)],
+    [piece("crate", 600, 600), piece("barrier", 480, 600)],
+  ]) {
+    const lab = new LabSession();
+    for (const placement of placements) assert.ok(lab.place(placement).placement);
+    assert.equal(lab.place(piece("crate", 580, 600)).error, "piece_overlap");
+    const imported = new LabSession();
+    imported.importPlan(JSON.parse(JSON.stringify(lab.exportPlan())));
+    assert.deepEqual(imported.exportPlan(), lab.exportPlan());
+  }
 });
 
 test("all original active items apply to the correct actor using original durations", () => {
